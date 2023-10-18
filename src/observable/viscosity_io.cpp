@@ -3,6 +3,191 @@
 #include <iomanip>
 #include <nlohmann/json.hpp>
 
+// TODO potentially this should be a viscosity parent object...
+
+// here alpha0 and alpha e are set through passing by reference
+void genericRelaxonEigenvectorsCheck(ParallelMatrix<double>& eigenvectors,
+                                int& numRelaxons, Particle& particle,
+                                Eigen::VectorXd& theta0,
+                                Eigen::VectorXd& theta_e,
+                                int& alpha0, int& alpha_e) {
+
+  // calculate the overlaps with special eigenvectors
+  Eigen::VectorXd prodTheta0(numRelaxons); prodTheta0.setZero();
+  Eigen::VectorXd prodThetae(numRelaxons); prodThetae.setZero();
+  for (auto tup : eigenvectors.getAllLocalStates()) {
+
+    auto is = std::get<0>(tup);
+    auto gamma = std::get<1>(tup);
+    prodTheta0(gamma) += eigenvectors(is,gamma) * theta0(is);
+    prodThetae(gamma) += eigenvectors(is,gamma) * theta_e(is);
+
+  }
+  mpi->allReduceSum(&prodThetae); mpi->allReduceSum(&prodTheta0);
+
+  // find the element with the maximum product
+  prodTheta0 = prodTheta0.cwiseAbs();
+  prodThetae = prodThetae.cwiseAbs();
+  Eigen::Index maxCol0, idxAlpha0;
+  Eigen::Index maxCol_e, idxAlpha_e;
+  float maxTheta0 = prodTheta0.maxCoeff(&idxAlpha0, &maxCol0);
+  float maxThetae = prodThetae.maxCoeff(&idxAlpha_e, &maxCol_e);
+
+  if(mpi->mpiHead()) {
+    std::cout << std::fixed;
+    std::cout << std::setprecision(4);
+    std::cout << "Maximum scalar product theta_0.theta_alpha = " << maxTheta0 << " at index " << idxAlpha0 << "." << std::endl;
+    std::cout << "First ten products with theta_0:";
+    for(int gamma = 0; gamma < 10; gamma++) { std::cout << " " << prodTheta0(gamma); }
+    if(particle.isElectron()) {
+      std::cout << "\n\nMaximum scalar product theta_e.theta_alpha = " << maxThetae << " at index " << idxAlpha_e << "." << std::endl;
+      std::cout << "First ten products with theta_e:";
+      for(int gamma = 0; gamma < 10; gamma++) { std::cout << " " << prodThetae(gamma); }
+    }
+    std::cout << std::endl;
+    std::cout << "Eigenvector norm check: " << theta0.dot(theta0) << " " << theta_e.dot(theta_e);
+
+  }
+
+  // save these indices to the class objects
+  // if they weren't really found, we leave these indices
+  // as -1 so that no relaxons are skipped
+  if(maxTheta0 >= 0.75) alpha0 = idxAlpha0;
+  if(maxThetae >= 0.75) alpha_e = idxAlpha_e;
+
+}
+
+// calculate special eigenvectors
+void genericCalcSpecialEigenvectors(BaseBandStructure& bandStructure,
+                              StatisticsSweep& statisticsSweep,
+                              double& spinFactor,
+                              Eigen::VectorXd& theta0,
+                              Eigen::VectorXd& theta_e,
+                              Eigen::MatrixXd& phi,
+                              double& C, Eigen::Vector3d& A) {
+
+  int dimensionality = bandStructure.getPoints().getCrystal().getDimensionality();
+  double volume = bandStructure.getPoints().getCrystal().getVolumeUnitCell(dimensionality);
+  auto particle = bandStructure.getParticle();
+  int numStates = bandStructure.getNumStates();
+
+  int iCalc = 0; // set to zero because of relaxons
+  auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+  double kBT = calcStat.temperature;
+  double T = calcStat.temperature / kBoltzmannRy;
+  double chemPot = 0;
+  double Npts = bandStructure.getPoints().getNumPoints();
+
+  // set particle specific quantities
+  if(particle.isElectron()) {
+    chemPot = calcStat.chemicalPotential;
+  }
+
+  // Precalculate theta_e, theta0, phi  ----------------------------------
+
+  // theta^0 - energy conservation eigenvector
+  //   electronic states = ds * g-1 * (hE - mu) * 1/(kbT^2 * V * Nkq * Ctot)
+  //   phonon states = ds * g-1 * h*omega * 1/(kbT^2 * V * Nkq * Ctot)
+  theta0 = Eigen::VectorXd::Zero(numStates);
+
+  // theta^e -- the charge conservation eigenvector
+  //   electronic states = ds * g-1 * 1/(kbT * U)
+  // for the phonons, this is unused
+  theta_e = Eigen::VectorXd::Zero(numStates);
+
+  // phi -- the three momentum conservation eigenvectors
+  //     phi = sqrt(1/(kbT*volume*Nkq*M)) * g-1 * ds * hbar * wavevector;
+  phi = Eigen::MatrixXd::Zero(3, numStates);
+
+  // spin degen vector
+  Eigen::VectorXd ds = Eigen::VectorXd::Zero(numStates);
+
+  // normalization for theta_e
+  double U = 0;
+
+  // calculate the special eigenvectors ----------------
+  for (int is : bandStructure.parallelStateIterator()) {
+
+    ds(is) = sqrt(spinFactor);
+    auto isIdx = StateIndex(is);
+    auto en = bandStructure.getEnergy(isIdx);
+    if(particle.isPhonon() && en < 0.001 / ryToCmm1) { continue; }
+    double pop = particle.getPopPopPm1(en, kBT, chemPot);
+
+    theta0(is) = sqrt(pop) * (en - chemPot) * ds(is);
+    if(particle.isElectron()) {
+      theta_e(is) = sqrt(pop) * sqrt(spinFactor) * ds(is);
+      U += pop;
+    }
+    C += pop * (en - chemPot) * (en - chemPot);
+  }
+  mpi->allReduceSum(&theta0);
+  mpi->allReduceSum(&theta_e);
+  mpi->allReduceSum(&C);
+  mpi->allReduceSum(&U);
+
+  // apply normalizations
+  C *= spinFactor / (volume * Npts * kBT * T);
+  theta0 *= 1./sqrt(kBT * T * volume * Npts * C);
+  U *= spinFactor / (volume * Npts * kBT);
+  if(particle.isPhonon()) U = 1.; // avoid making theta_e nan instead of zero
+  theta_e *= 1./sqrt(kBT * U * Npts * volume);
+
+  // calculate A_i ----------------------------------------
+
+  // normalization coeff A ("phonon specific momentum")
+  // A = 1/(V*N) * (1/kT) sum_qs (hbar*q)^2 * N(1+N)
+  A = Eigen::Vector3d::Zero();
+
+  for (int is : bandStructure.parallelStateIterator()) {
+    auto isIdx = StateIndex(is);
+    auto en = bandStructure.getEnergy(isIdx);
+
+    if(particle.isPhonon() && en < 0.001 / ryToCmm1) { continue; }
+    double pop = particle.getPopPopPm1(en, kBT, chemPot); // = n(n+1)
+    auto q = bandStructure.getWavevector(isIdx);
+    q = bandStructure.getPoints().bzToWs(q,Points::cartesianCoordinates);
+    for (int iDim = 0; iDim < dimensionality; iDim++) {
+      A(iDim) += pop * q(iDim) * q(iDim);
+    }
+  }
+  mpi->allReduceSum(&A);
+  A *= spinFactor / (kBT * Npts * volume);
+
+  // then calculate the drift eigenvectors, phi (eq A12 of PRX Simoncelli)
+  // -----------------------------------------------------------------
+  for (int is : bandStructure.parallelStateIterator()) {
+
+    auto isIdx = StateIndex(is);
+    auto en = bandStructure.getEnergy(isIdx);
+    if(particle.isPhonon() && en < 0.001 / ryToCmm1) { continue; }
+
+    double pop = particle.getPopPopPm1(en, kBT, chemPot); // = n(n+1)
+    auto q = bandStructure.getWavevector(isIdx);
+    q = bandStructure.getPoints().bzToWs(q,Points::cartesianCoordinates);
+    for (auto i : {0, 1, 2}) {
+      phi(i, is) = q(i) * sqrt(pop) * ds(is);
+    }
+  }
+  mpi->allReduceSum(&phi);
+  // apply normalization to phi
+  for(int is = 0; is < numStates; is++) {
+    for(int i : {0,1,2}) phi(i,is) *= 1./sqrt(kBT * volume * Npts * A(i));
+  }
+/*
+  // print phi overlap
+  if(mpi->mpiHead()) {
+    for(int i : {0,1,2} ) {
+      double phiTot = 0;
+      for (int is : bandStructure.irrStateIterator()) {
+        phiTot += phi(i, is)*phi(i,is);
+      }
+     std::cout << "phi norm " << i << " " << phiTot << std::endl;;
+    }
+  }
+*/
+}
+
 void printViscosity(std::string& viscosityName, Eigen::Tensor<double, 5>& viscosityTensor,
                                 StatisticsSweep& statisticsSweep, int& dimensionality) {
 
@@ -44,7 +229,6 @@ void printViscosity(std::string& viscosityName, Eigen::Tensor<double, 5>& viscos
     std::cout << std::endl;
   }
 }
-
 
 void outputViscosityToJSON(const std::string& outFileName, const std::string& viscosityName,
                 Eigen::Tensor<double, 5>& viscosityTensor, const bool& append,
@@ -138,7 +322,7 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
     auto is2 = std::get<1>(tup);
     for (auto i : {0, 1, 2}) {
       for (auto j : {0, 1, 2}) {
-        Du(i,j) += phi(i,is1) * scatteringMatrix(is1,is2) * phi(j,is2) * energyRyToEv;
+        Du(i,j) += phi(i,is1) * scatteringMatrix(is1,is2) * phi(j,is2);
       }
     }
   }
@@ -148,15 +332,15 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
     auto isIdx = StateIndex(is);
     double en = bandStructure.getEnergy(isIdx);
     // discard acoustic phonon modes
-    if (en < 0.001 / ryToCmm1) { continue; }
+    if (isPhonon && en < 0.001 / ryToCmm1) { continue; }
     auto v = bandStructure.getGroupVelocity(isIdx);
     for (auto j : {0, 1, 2}) {
       for (auto i : {0, 1, 2}) {
         // note: phi and theta here are elStates long, so we need to shift the state
         // index to account for the fact that we summed over the electronic part above
         // calculate qunatities for the real-space solve
-        Wji0(j,i) += phi(i,is) * v(j) * theta0(is) * velocityRyToSi;
-        Wjie(j,i) += phi(i,is) * v(j) * theta_e(is) * velocityRyToSi;
+        Wji0(j,i) += phi(i,is) * v(j) * theta0(is);
+        Wjie(j,i) += phi(i,is) * v(j) * theta_e(is);
       }
     }
   }
@@ -171,9 +355,9 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
   for (auto i : {0, 1, 2}) {
     std::vector<double> temp1,temp2,temp3;
     for (auto j : {0, 1, 2}) {
-      temp1.push_back(Du(i,j));
-      temp2.push_back(Wji0(i,j));
-      temp3.push_back(Wjie(i,j));
+      temp1.push_back(Du(i,j) * energyRyToFs);
+      temp2.push_back(Wji0(i,j) * velocityRyToSi);
+      temp3.push_back(Wjie(i,j) * velocityRyToSi);
     }
     vecDu.push_back(temp1);
     vecWji0.push_back(temp2);
@@ -183,8 +367,8 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
   // convert Ai to SI, in units of picograms/(mu m^3)
   double Aconversion = electronMassSi /
                        std::pow(distanceBohrToMum,dimensionality) * // convert AU mass / V -> SI
-                       2 *   // factor of two is a Ry->Ha conversion required here
-                       1e15; // convert electronMassSi in kg to pico g
+                       2. *   // factor of two is a Ry->Ha conversion required here
+                       1.e15; // convert electronMassSi in kg to pico g
 
                        // Michele's version of this, gives thes same answer
                        // double altConv =  1./rydbergSi * // convert kBT
@@ -221,7 +405,7 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
     output["Du"] = vecDu;
     output["temperatureUnit"] = "K";
     output["wUnit"] = "m/s";
-    output["DuUnit"] = "eV";
+    output["DuUnit"] = "fs^{-1}";
     output["specificHeat"] = C * specificHeatConversion;
     output["specificHeatUnit"] = specificHeatUnits;
     output["particleType"] = particle.isPhonon() ? "phonon" : "electron";

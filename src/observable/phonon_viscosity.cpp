@@ -212,6 +212,10 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
 // calculate special eigenvectors
 void PhononViscosity::calcSpecialEigenvectors() {
 
+  genericCalcSpecialEigenvectors(bandStructure, statisticsSweep,
+                          spinFactor, theta0, theta_e, phi, C, A);
+
+/*
   double volume = crystal.getVolumeUnitCell(dimensionality);
   auto particle = bandStructure.getParticle();
   double Nq = context.getQMesh().prod();
@@ -289,14 +293,21 @@ void PhononViscosity::calcSpecialEigenvectors() {
     }
   }
   mpi->allReduceSum(&phi);
+*/
 }
-
 
 void PhononViscosity::relaxonEigenvectorsCheck(ParallelMatrix<double>& eigenvectors,
                                                         int& numRelaxons) {
 
-  // goal is to print and save the indices and scalar products of the special eigenvectors
+  // sets alpha0 and alpha_e, the indices
+  // of the special eigenvectors in the eigenvector list,
+  // to be excluded in later calculations
+  Particle particle = bandStructure.getParticle();
+  genericRelaxonEigenvectorsCheck(eigenvectors, numRelaxons, particle,
+                                 theta0, theta_e, alpha0, alpha_e);
 
+  // goal is to print and save the indices and scalar products of the special eigenvectors
+/*
   // calculate the overlaps with special eigenvectors
   Eigen::VectorXd prodTheta0(numRelaxons); prodTheta0.setZero();
   for (auto tup : eigenvectors.getAllLocalStates()) {
@@ -326,7 +337,7 @@ void PhononViscosity::relaxonEigenvectorsCheck(ParallelMatrix<double>& eigenvect
   // if they weren't really found, we leave these indices
   // as -1 so that no relaxons are skipped
   if(maxTheta0 >= 0.75) alpha0 = idxAlpha0;
-
+*/
 }
 
 void PhononViscosity::print() {
@@ -346,7 +357,6 @@ void PhononViscosity::outputToJSON(const std::string& outFileName) {
 }
 
 int PhononViscosity::whichType() { return is4Tensor; }
-
 
 void PhononViscosity::outputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix) {
 

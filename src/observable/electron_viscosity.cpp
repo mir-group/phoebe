@@ -12,15 +12,16 @@ ElectronViscosity::ElectronViscosity(Context &context_, StatisticsSweep &statist
 
   tensordxdxdxd = Eigen::Tensor<double, 5>(numCalculations, dimensionality, dimensionality, dimensionality, dimensionality);
   tensordxdxdxd.setZero();
-}
-
-void ElectronViscosity::calcRTA(VectorBTE &tau) {
 
   // add a relevant spin factor
-  double spinFactor = 2.;
+  spinFactor = 2.;
   if (context.getHasSpinOrbit()) {
     spinFactor = 1.;
   }
+
+}
+
+void ElectronViscosity::calcRTA(VectorBTE &tau) {
 
   double Nk = context.getKMesh().prod();
   double norm = spinFactor / Nk / crystal.getVolumeUnitCell(dimensionality);
@@ -76,7 +77,6 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
   mpi->allReduceSum(&tensordxdxdxd);
 }
 
-
 void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues, ParallelMatrix<double> &eigenvectors) {
 
   if (numCalculations > 1) {
@@ -110,8 +110,6 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues, ParallelM
   // print info about the special eigenvectors
   // and save the indices that need to be skipped
   relaxonEigenvectorsCheck(eigenvectors, numRelaxons);
-
-  //if(mpi->mpiHead()) std::cout << "about to calculate relaxon populations " << std::endl;
 
   // transform from the relaxon population basis to the electron population ------------
   Eigen::Tensor<double, 3> fRelaxons(3, 3, numStates);
@@ -159,8 +157,6 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues, ParallelM
   }
   mpi->allReduceSum(&f);
 
- //if(mpi->mpiHead()) std::cout << "about to do final viscosity" << std::endl;
-
   // calculate the final viscosity --------------------------
   double norm = 1. / volume / Nk;
   tensordxdxdxd.setZero();
@@ -193,6 +189,14 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues, ParallelM
 // TODO could merge this into one function with the phonon one
 void ElectronViscosity::relaxonEigenvectorsCheck(ParallelMatrix<double>& eigenvectors, int& numRelaxons) {
 
+  // sets alpha0 and alpha_e, the indices
+  // of the special eigenvectors in the eigenvector list,
+  // to be excluded in later calculations
+  Particle particle = bandStructure.getParticle();
+  genericRelaxonEigenvectorsCheck(eigenvectors, numRelaxons, particle,
+                                 theta0, theta_e, alpha0, alpha_e);
+
+/*
   // goal is to print and save the indices and scalar products of the special eigenvectors
   // add a relevant spin factor
   double spinFactor = 2.;
@@ -212,9 +216,9 @@ void ElectronViscosity::relaxonEigenvectorsCheck(ParallelMatrix<double>& eigenve
 
   // calculate the special eigenvectors' product with eigenvectors ----------------
   // to report it's index and overlap + remove it from the calculation
-  double C = 0; double U = 0;
-  Eigen::VectorXd theta0(numStates);  theta0.setZero();
-  Eigen::VectorXd theta_e(numStates); theta_e.setZero();
+  C = 0; double U = 0;
+  theta0(numStates);  theta0.setZero();
+  theta_e(numStates); theta_e.setZero();
   for (int is : bandStructure.parallelStateIterator()) {
 
     auto isIdx = StateIndex(is);
@@ -272,6 +276,14 @@ void ElectronViscosity::relaxonEigenvectorsCheck(ParallelMatrix<double>& eigenve
   // as -1 so that no relaxons are skipped
   if(maxTheta0 >= 0.75) alpha0 = idxAlpha0;
   if(maxThetae >= 0.75) alpha_e = idxAlpha_e;
+*/
+}
+
+// calculate special eigenvectors
+void ElectronViscosity::calcSpecialEigenvectors() {
+
+  genericCalcSpecialEigenvectors(bandStructure, statisticsSweep,
+                          spinFactor, theta0, theta_e, phi, C, A);
 }
 
 void ElectronViscosity::print() {
@@ -287,6 +299,15 @@ void ElectronViscosity::outputToJSON(const std::string &outFileName) {
   std::string viscosityName = "electronViscosity";
   outputViscosityToJSON(outFileName, viscosityName,
                 tensordxdxdxd, append, statisticsSweep, dimensionality);
+
+}
+
+
+void ElectronViscosity::outputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix) {
+
+  // call the function in viscosity io
+  genericOutputRealSpaceToJSON(scatteringMatrix, bandStructure, statisticsSweep,
+                                theta0, theta_e, phi, C, A);
 
 }
 
