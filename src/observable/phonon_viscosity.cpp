@@ -88,7 +88,6 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
     Error("Developer error: Viscosity for relaxons only for 1 temperature.");
   }
 
-  double volume = crystal.getVolumeUnitCell(dimensionality);
   int numStates = bandStructure.getNumStates();
   int numRelaxons = eigenvalues.size();
   int iCalc = 0; // zero index, because we only run one for relaxons
@@ -365,7 +364,7 @@ void PhononViscosity::outputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix) 
 
   // call the function in viscosity io
   genericOutputRealSpaceToJSON(scatteringMatrix, bandStructure, statisticsSweep,
-                                theta0, theta_e, phi, C, A);
+                                theta0, theta_e, phi, C, A, context);
 
 }
 

@@ -307,7 +307,7 @@ void ElectronViscosity::outputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix
 
   // call the function in viscosity io
   genericOutputRealSpaceToJSON(scatteringMatrix, bandStructure, statisticsSweep,
-                                theta0, theta_e, phi, C, A);
+                                theta0, theta_e, phi, C, A, context);
 
 }
 

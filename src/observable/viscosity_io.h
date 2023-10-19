@@ -36,7 +36,8 @@
                                 Eigen::VectorXd& theta0,
                                 Eigen::VectorXd& theta_e,
                                 Eigen::MatrixXd& phi,
-                                double& C, Eigen::Vector3d& A);
+                                double& C, Eigen::Vector3d& A,
+                                Context& context);
 
   /** Helper function to print information about the scalar products with the
    * special eigenvectors.

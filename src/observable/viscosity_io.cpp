@@ -75,7 +75,9 @@ void genericCalcSpecialEigenvectors(BaseBandStructure& bandStructure,
   auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
   double kBT = calcStat.temperature;
   double T = calcStat.temperature / kBoltzmannRy;
-  double chemPot = 0;
+  double chemPot = 0; // has to be zero for phonons,
+                      // don't use the stat sweep one which may have
+                      // finite values if phel scattering is used
   double Npts = bandStructure.getPoints().getNumPoints();
 
   // set particle specific quantities
@@ -113,13 +115,13 @@ void genericCalcSpecialEigenvectors(BaseBandStructure& bandStructure,
 
     ds(is) = sqrt(spinFactor);
     auto isIdx = StateIndex(is);
-    auto en = bandStructure.getEnergy(isIdx);
+    double en = bandStructure.getEnergy(isIdx);
     if(particle.isPhonon() && en < 0.001 / ryToCmm1) { continue; }
     double pop = particle.getPopPopPm1(en, kBT, chemPot);
 
     theta0(is) = sqrt(pop) * (en - chemPot) * ds(is);
     if(particle.isElectron()) {
-      theta_e(is) = sqrt(pop) * sqrt(spinFactor) * ds(is);
+      theta_e(is) = sqrt(pop) * ds(is);
       U += pop;
     }
     C += pop * (en - chemPot) * (en - chemPot);
@@ -135,6 +137,7 @@ void genericCalcSpecialEigenvectors(BaseBandStructure& bandStructure,
   U *= spinFactor / (volume * Npts * kBT);
   if(particle.isPhonon()) U = 1.; // avoid making theta_e nan instead of zero
   theta_e *= 1./sqrt(kBT * U * Npts * volume);
+
 
   // calculate A_i ----------------------------------------
 
@@ -302,7 +305,8 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
                                 Eigen::VectorXd& theta0,
                                 Eigen::VectorXd& theta_e,
                                 Eigen::MatrixXd& phi,
-                                double& C, Eigen::Vector3d& A) {
+                                double& C, Eigen::Vector3d& A,
+                                Context& context) {
 
   // write D to file before diagonalizing, as the scattering matrix
   // will be destroyed by scalapack
@@ -327,7 +331,15 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
     auto is2 = std::get<1>(tup);
     for (auto i : {0, 1, 2}) {
       for (auto j : {0, 1, 2}) {
-        Du(i,j) += phi(i,is1) * scatteringMatrix(is1,is2) * phi(j,is2);
+      /*  if(context.getUseUpperTriangle()) {
+          if( i == j ) {
+            Du(i,j) += phi(i,is1) * scatteringMatrix(is1,is2) * phi(j,is2);
+          } else {
+            Du(i,j) += 2. * phi(i,is1) * scatteringMatrix(is1,is2) * phi(j,is2);
+          }
+        } else { */
+          Du(i,j) += phi(i,is1) * scatteringMatrix(is1,is2) * phi(j,is2);
+       // }
       }
     }
   }
