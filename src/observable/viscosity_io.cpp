@@ -105,6 +105,9 @@ void genericCalcSpecialEigenvectors(BaseBandStructure& bandStructure,
   // normalization for theta_e
   double U = 0;
 
+  // specific heat
+  C = 0.;
+
   // calculate the special eigenvectors ----------------
   for (int is : bandStructure.parallelStateIterator()) {
 
