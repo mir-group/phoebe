@@ -80,7 +80,8 @@ if __name__ == "__main__":
         if "real_space" in filename:
             k1 = numpy.array(data1['specificHeat'])
             k2 = numpy.array(data2['specificHeat'])
-            diff = ((k1 - k2)/numpy.max(k1)).sum()
+            print(k1, k2)
+            diff = (k1 - k2)/numpy.max(k1)
             if abs(diff) > tol: # viscosities are small
                 print(diff)
                 print(filename)
