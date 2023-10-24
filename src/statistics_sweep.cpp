@@ -289,8 +289,8 @@ StatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
           "numBands: " + std::to_string(numBands) + " numElectrons: " + std::to_string(numElectronsDoped)
           + "\nThis likely means you've selected a non-physical doping value, such as\n"
           "a very small doping for a metal, or you didn't Wannierize enough bands."
-          "\nThis can also happen if you had bands under your disentanglement window which"
-          "you did not cut out using exclude_bands in Wannier90. See a note about this in the elphWannier tutorial.");
+          "\nThis can also happen if you had bands under your disentanglement window which\n"
+          "were not excluded using exclude_bands in Wannier90.\nSee a note about this in the elphWannier tutorial.");
   }
   if (numElectronsDoped < 0.) {
     Error("The number of occupied states is negative");
