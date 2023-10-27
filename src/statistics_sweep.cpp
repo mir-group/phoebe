@@ -379,6 +379,9 @@ double StatisticsSweep::findDopingFromChemicalPotential(
   if (isDistributed) mpi->allReduceSum(&fPop);
   fPop /= double(numPoints);
   double doping = (occupiedStates - fPop);
+  // here we save doping in 1/cm^3 because doping is never used 
+  // internally for calculations, with the exception of converting sigma->mu at the very end. 
+  // this is only for printing to file later. 
   doping *= spinFactor / volume / pow(distanceBohrToCm, 3);
   return doping;
 }
