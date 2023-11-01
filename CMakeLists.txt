@@ -100,6 +100,7 @@ if (MPI_AVAIL)
               -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
               -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
               -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
+              -DCMAKE_C_FLAGS="-Wno-error=implicit-function-declaration"
           )
       set(SCALAPACK_LIB scalapack)
       message(WARNING "No SCALAPACK library found in CMAKE_LIBRARY_PATH, building our own.")
