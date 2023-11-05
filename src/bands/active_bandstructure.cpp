@@ -820,7 +820,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   points_.setIrreduciblePoints();
 
   // Loop over the wavevectors belonging to each process
-  std::vector<int> parallelIter = fullBandStructure.getWavevectorIndices();
+  std::vector<int> parallelIter = fullBandStructure.getLocalWavevectorIndices();
   Kokkos::Profiling::pushRegion("filter points");
 
   // iterate over mpi-parallelized wavevectors
@@ -1071,6 +1071,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   }
   buildSymmetries();
   Kokkos::Profiling::popRegion();
+  statisticsSweep.calcNumFreeCarriers(this);
   return statisticsSweep;
 }
 
