@@ -287,7 +287,7 @@ int SerialMatrix<T>::size() const {
 template <typename T>
 T& SerialMatrix<T>::operator()(const int &row, const int &col) {
   if(row >= numRows_ || col >= numCols_ || row < 0 || col < 0) {
-    DveloperError("SMatrix get/set attempted to reference a matrix element out of bounds.");
+    DeveloperError("SMatrix get/set attempted to reference a matrix element out of bounds.");
   }
   return mat[global2Local(row, col)];
 }
