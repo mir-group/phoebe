@@ -45,12 +45,17 @@ public:
    */
 //  ElScatteringMatrix &operator=(const ElScatteringMatrix &that);
 
+  /** Function to return the momentum relaxation times specifically */
+  VectorBTE getSingleModeMRTimes();
+
 protected:
   InteractionElPhWan *couplingElPhWan;
   PhononH0 &h0;
 
   double boundaryLength;
   bool doBoundary;
+
+  std::shared_ptr<VectorBTE> linewidthMR;
 
   /** Function with the detailed calculation of the scattering matrix.
    *

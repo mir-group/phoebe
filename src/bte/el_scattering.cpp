@@ -55,6 +55,9 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     Error("The linewidths shouldn't have dimensionality");
   }
 
+  // set up the MRTA container
+  linewidthMR = std::make_shared<VectorBTE>(statisticsSweep, outerBandStructure, 1);
+
   auto particle = outerBandStructure.getParticle();
 
   int numCalculations = statisticsSweep.getNumCalculations();
@@ -316,6 +319,9 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                     * ((fermi2 + bose3) * delta1
                        + (1. - fermi2 + bose3) * delta2)
                     * norm / en3 * pi;
+                // compute the extra 1-cosTheta term needed for MRTA
+                double cosTheta = 1. - (v1s.row(ib1).dot(v2s.row(ib2)) / (v1s.row(ib1).norm() * v2s.row(ib2).norm()));
+                double rateMR = rate * cosTheta;
 
                 double rateOffDiagonal = -
                       coupling(ib1, ib2, ib3) * bose3Symm * (delta1 + delta2)
@@ -338,6 +344,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                         if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
                             linewidth->operator()(iCalc, 0, iBte1) += rate;
+                            linewidthMR->operator()(iCalc, 0, iBte1) += rateMR;
                           }
                           if (is1 != is2Irr) {
                             theMatrix(iMat1, iMat2) +=
@@ -349,6 +356,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                   } else {
                     if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
                       linewidth->operator()(iCalc, 0, iBte1) += rate;
+                      linewidthMR->operator()(iCalc, 0, iBte1) += rateMR;
                     }
                     theMatrix(iBte1, iBte2) += rateOffDiagonal;
                   }
@@ -377,6 +385,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 } else {
                   // case of linewidth construction
                   linewidth->operator()(iCalc, 0, iBte1) += rate;
+                  linewidthMR->operator()(iCalc, 0, iBte1) += rateMR;
                 }
               }
             }
@@ -393,6 +402,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     }
   } else {
     mpi->allReduceSum(&linewidth->data);
+    mpi->allReduceSum(&linewidthMR->data);
   }
   // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
   loopPrint.close();
@@ -401,6 +411,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   // we turn it off for now and leave the code if needed in the future
   if (switchCase == 2) {
     degeneracyAveragingLinewidths(linewidth);
+    degeneracyAveragingLinewidths(linewidthMR.get());
   }
 
   // Add boundary scattering
@@ -411,7 +422,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     int nis1s = is1s.size();
 #pragma omp parallel for default(none) shared(                            \
     outerBandStructure, numCalculations, statisticsSweep, boundaryLength, \
-    particle, outPopulations, inPopulations, linewidth, switchCase, nis1s, is1s)
+    particle, outPopulations, inPopulations, linewidth, linewidthMR, switchCase, nis1s, is1s)
     for (int iis1 = 0; iis1 < nis1s; iis1++) {
       int is1 = is1s[iis1];
       StateIndex is1Idx(is1);
@@ -423,6 +434,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
         if (switchCase == 0) {// case of matrix construction
           linewidth->operator()(iCalc, 0, iBte1) += rate;
+          linewidthMR->operator()(iCalc, 0, iBte1) += rate;
 
         } else if (switchCase == 1) {// case of matrix-vector multiplication
           for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
@@ -435,6 +447,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         } else {// case of linewidth construction
           // case of linewidth construction
           linewidth->operator()(iCalc, 0, iBte1) += rate;
+          linewidthMR->operator()(iCalc, 0, iBte1) += rate;
         }
       }
     }
@@ -469,4 +482,14 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     }
   }
   Kokkos::Profiling::popRegion();
+
+  // before closing, write the MR relaxation times to file
+  outputLifetimesToJSON("rta_el_momentum_relaxation_times.json", linewidthMR);
+
 }
+
+// function called on shared ptrs of linewidths
+VectorBTE ElScatteringMatrix::getSingleModeMRTimes() {
+  return getTimesFromVectorBTE(*linewidthMR);
+}
+

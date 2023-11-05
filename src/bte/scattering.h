@@ -68,10 +68,10 @@ public:
 //  ParallelMatrix<double> dot(const ParallelMatrix<double> &otherMatrix);
 
   /** Call to obtain the single-particle relaxation times of the systems
-   * @param int: which times to output, 0 = internalDiagonal, 1 = normal, 2 = umklapp
    * @return tau: a VectorBTE object storing the relaxation times
    */
-  VectorBTE getSingleModeTimes(const int whichTimes = 0);
+  VectorBTE getSingleModeTimes(); //const int whichTimes = 0);
+  VectorBTE getSingleModeTimes(std::shared_ptr<VectorBTE> internalDiag); //const int whichTimes = 0);
 
   /** Call to obtain the single-particle linewidths.
    *
@@ -129,6 +129,13 @@ public:
    * @param outFileName: string representing the name of the json file
    */
   void outputToJSON(const std::string &outFileName);
+
+  /** Outputs the given vector bte of the internal diagonal to a json file.
+  * @param outFileName: string representing the name of the json file
+  * @param internalDiag: the internal diagonal of any kind to be written out
+  */
+  void outputLifetimesToJSON(const std::string &outFileName,
+                                std::shared_ptr<VectorBTE> internalDiag);
 
   /** Function to combine a BTE index and a cartesian index into one index of
    * the scattering matrix. If no symmetries are used, the output is equal to
