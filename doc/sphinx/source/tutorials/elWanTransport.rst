@@ -131,8 +131,7 @@ Also, it's important that ``prefix`` and ``outdir`` are the same as those used i
 Use a good value of ``tr2_ph`` (smaller is better, but harder to converge), which (indirectly) checks the convergence of phonon frequencies.
 
 
-In the input file, we set the flag ``electron_phonon = "epa"``. Even though we are not doing an EPA calculation, this flag still results in the
-This will trigger the calculation of the electron-phonon coupling matrix elements which are used by Phoebe.
+In the input file, we set the flag ``electron_phonon = "epa"``. Even though we are not doing an EPA calculation, this flag is generally used to trigger the calculation of the electron-phonon coupling matrix elements which are used by Phoebe.
 
 Run the code as::
 
