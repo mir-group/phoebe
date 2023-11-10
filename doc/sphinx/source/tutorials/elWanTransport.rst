@@ -45,6 +45,8 @@ This calculation will create the ground state charge density and wavefunctions t
    It is imperative that this `scf` calculation is only done once at the beginning and is never repeated aftwerwards.
    If you run another `scf` calculation between step 3 and 6, you may alter the gauge of the wavefunction and thus ruin the interpolation of the electron-phonon coupling.
 
+   Additionally, please make sure you do all steps involving QE (3-6) in the same directory with this gauge information -- otherwise, the calculation could be wrong!
+
 To run this calculation, go to the folder ``./example/Silicon_el/qe-elph`` in the Phoebe repository.
 The file ``scf.in`` is the input file for the ``pw.x`` executable.
 The contents of the ``scf.in`` file for a total energy DFT calculation of Quantum ESPRESSO for a silicon crystal is shown below ::
