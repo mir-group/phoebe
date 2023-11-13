@@ -128,8 +128,8 @@ if (MPI_AVAIL)
   include_directories(${BLAS_INCLUDE_DIR})
   include_directories(${LAPACK_INCLUDE_DIR})
   ## Very important to link scalapack before blas and lapack
-  target_link_libraries(phoebe ${SCALAPACK_LIB} ${BLACS_LIB} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
-  target_link_libraries(runTests ${SCALAPACK_LIB} ${BLACS_LIB} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
+  target_link_libraries(phoebe ${SCALAPACK_LIB} ${BLACS_LIB} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} )
+  target_link_libraries(runTests ${SCALAPACK_LIB} ${BLACS_LIB} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} )
 
 else()
   set(HDF5_SERIAL ON)
@@ -139,8 +139,8 @@ else()
   find_package(LAPACK REQUIRED)
   include_directories(${BLAS_INCLUDE_DIR})
   include_directories(${LAPACK_INCLUDE_DIR})
-  target_link_libraries(phoebe ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
-  target_link_libraries(runTests ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
+  target_link_libraries(phoebe ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} )
+  target_link_libraries(runTests ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
 
 endif()
 
