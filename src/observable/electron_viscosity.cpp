@@ -29,6 +29,8 @@ ElectronViscosity &ElectronViscosity::operator=(const ElectronViscosity &that) {
   Observable::operator=(that);
   if (this != &that) {
     bandStructure = that.bandStructure;
+
+  Kokkos::Profiling::pushRegion("HelperElScattering");
   }
   return *this;
 }
@@ -250,6 +252,7 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
     }
   }
   mpi->allReduceSum(&tensordxdxdxd);
+  Kokkos::Profiling::popRegion();
 }
 
 void ElectronViscosity::print() {

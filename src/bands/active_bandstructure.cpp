@@ -123,11 +123,12 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
         size_t ik = iks[start_iik+iik];
         Point point = points.getPoint(ik);
 
-
         for(int i = 0; i < numBands; i++){
           energies(i) = energies_h(iik,i);
-          for(int j = 0; j < numBands; j++){
-            eigenvectors(j,i) = eigenvectors_h(iik,j,i);
+          if (withEigenvectors) {
+            for(int j = 0; j < numBands; j++){
+              eigenvectors(j,i) = eigenvectors_h(iik,j,i);
+            }
           }
         }
 
@@ -145,7 +146,7 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
     // the same again, but for velocities
     // TODO: I think this also returns the energies and velocities above, so we could avoid
     // the above calculation entirely (12.5% potential speedup)
-    Kokkos::Profiling::pushRegion("velocity loop");
+    Kokkos::Profiling::pushRegion("bandstructure velocity loop");
 
     int approx_batch_size = h0->estimateBatchSize(true);
 
@@ -447,6 +448,9 @@ void ActiveBandStructure::buildIndices() {
 }
 
 void ActiveBandStructure::buildSymmetries() {
+
+  Kokkos::Profiling::pushRegion("ABS.buildSymmetries");
+
   // ------------------
   // things to use in presence of symmetries
   {
@@ -485,6 +489,7 @@ void ActiveBandStructure::buildSymmetries() {
     }
     ikOld = ik;
   }
+  Kokkos::Profiling::popRegion();
 }
 
 std::tuple<ActiveBandStructure, StatisticsSweep>
@@ -505,6 +510,7 @@ ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
 
     StatisticsSweep s = activeBandStructure.buildAsPostprocessing(
         context, points_, h0, withEigenvectors, withVelocities);
+
     return std::make_tuple(activeBandStructure, s);
 
   }
@@ -555,8 +561,12 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   std::vector<int> filteredThreadPoints;
   std::vector<std::vector<int>> filteredThreadBands;
 
+  std::vector<size_t> pointsIter = mpi->divideWorkIter(points_.getNumPoints());
   #pragma omp for nowait schedule(static)
-  for (int ik : mpi->divideWorkIter(points_.getNumPoints())) {
+  for (size_t iik = 0; iik < pointsIter.size(); iik++) {
+
+    int ik = pointsIter[iik];
+
     Point point = points_.getPoint(ik);
     // diagonalize harmonic hamiltonian
     auto tup = h0.diagonalize(point);
@@ -697,8 +707,8 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   Kokkos::Profiling::pushRegion("trimmed diagonalization loop");
 
 // now we can loop over the trimmed list of points
-#pragma omp parallel for default(none) \
-    shared(mpi, h0, window, filteredBands, withEigenvectors, withVelocities, iks, niks)
+#pragma omp parallel for default(none)                                         \
+    shared(mpi, h0, window, filteredBands, withEigenvectors, withVelocities, iks, niks, Eigen::Dynamic)
   for (size_t iik = 0; iik < niks; iik++) {
     size_t ik = iks[iik];
     Point point = points.getPoint(ik);
@@ -840,7 +850,9 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   std::vector<std::vector<int>> filteredThreadBands;
 
   #pragma omp for nowait schedule(static)
-  for (int ik : parallelIter) {
+  for (int iik = 0; iik < parallelIter.size(); iik++) {
+
+    int ik = parallelIter[iik];
 
     auto ikIdx = WavevectorIndex(ik);
     //    Eigen::VectorXd theseEnergies =
