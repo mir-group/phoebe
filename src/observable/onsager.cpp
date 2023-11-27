@@ -128,6 +128,7 @@ void OnsagerCoefficients::calcFromCanonicalPopulation(VectorBTE &fE,
 }
 
 void OnsagerCoefficients::calcFromSymmetricPopulation(VectorBTE &nE, VectorBTE &nT) {
+
   VectorBTE nE2 = nE;
   VectorBTE nT2 = nT;
 
@@ -278,14 +279,17 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
 }
 
 void OnsagerCoefficients::calcTransportCoefficients() {
+
   sigma = LEE;
   mobility = sigma;
 
   for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+
     Eigen::MatrixXd thisLEE(dimensionality, dimensionality);
     Eigen::MatrixXd thisLET(dimensionality, dimensionality);
     Eigen::MatrixXd thisLTE(dimensionality, dimensionality);
     Eigen::MatrixXd thisLTT(dimensionality, dimensionality);
+
     for (int i = 0; i < dimensionality; i++) {
       for (int j = 0; j < dimensionality; j++) {
         thisLEE(i, j) = LEE(iCalc, i, j);
@@ -296,7 +300,7 @@ void OnsagerCoefficients::calcTransportCoefficients() {
     }
 
     // seebeck = - matmul(L_EE_inv, L_ET)
-    Eigen::MatrixXd thisSeebeck = -(thisLEE.inverse()) * thisLET;
+    Eigen::Matrix3d thisSeebeck = -(thisLEE.inverse()) * thisLET;
     // note: in the unit conversion, I have to consider that S, proportional
     // to 1/e, gets a negative sign coming from the negative electron charge
     // Note that below, the correction on kappa is always positive (L_TE L_ET
@@ -304,21 +308,37 @@ void OnsagerCoefficients::calcTransportCoefficients() {
     thisSeebeck *= -1;
 
     // k = L_tt - L_TE L_EE^-1 L_ET
-    Eigen::MatrixXd thisKappa = thisLTE * (thisLEE.inverse());
+    Eigen::Matrix3d thisKappa = thisLTE * (thisLEE.inverse());
     thisKappa = -(thisLTT - thisKappa * thisLET);
+
     double doping = abs(statisticsSweep.getCalcStatistics(iCalc).doping);
     doping *= pow(distanceBohrToCm, dimensionality); // from cm^-3 to bohr^-3
     for (int i = 0; i < dimensionality; i++) {
       for (int j = 0; j < dimensionality; j++) {
         seebeck(iCalc, i, j) = thisSeebeck(i, j);
         kappa(iCalc, i, j) = thisKappa(i, j);
-        if (doping > 0.) {
-          mobility(iCalc, i, j) /= doping;
+	if (abs(doping) > 0.) {
+     	  mobility(iCalc, i, j) /= doping;
         }
       }
     }
   }
   Kokkos::Profiling::popRegion();
+
+  if(context.getSymmetrizeBandStructure()) {
+    // we print the unsymmetrized tensor to output file
+    if(mpi->mpiHead()) {
+      std::cout << "\nPre-symmetrization electronic transport properties:" << std::endl;
+      print();
+    }
+    // symmetrize the transport tensors 
+    symmetrize(sigma);
+    symmetrize(kappa);
+    symmetrize(mobility);
+    symmetrize(seebeck);
+  }
+  if(mpi->mpiHead()) 
+    std::cout << "\nPost-symmetrization electronic transport properties:" << std::endl;
 }
 
 void OnsagerCoefficients::calcFromRelaxons(
@@ -802,4 +822,65 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
   mpi->allReduceSum(&y2T);
   sigma = 2. * y2E - y1E;
   kappa = 2. * y2T - y1T;
+
+  if(context.getSymmetrizeBandStructure()) {
+    // we print the unsymmetrized tensor to output file
+    if(mpi->mpiHead()) {
+      std::cout << "Unsymmetrized electronic transport properties:\n" << std::endl;
+      print();
+    }
+    // symmetrize the conductivity 
+    symmetrize(sigma);
+    symmetrize(kappa);
+    mpi->barrier();
+  }
 }
+
+// TODO this should be a function of observable rather than of onsager, 
+// however, somehow Onsager does not inherit from observable... 
+void OnsagerCoefficients::symmetrize(Eigen::Tensor<double, 3>& allTransportCoeffs) {
+
+  // get symmetry rotations of the crystal in cartesian coords
+  // in case there's no symmetries, we need to trick Phoebe into
+  // generating a crystal which uses them.
+  bool useSyms = context.getUseSymmetries();
+  context.setUseSymmetries(true);
+  Crystal symCrystal(crystal);
+  symCrystal.generateSymmetryInformation(context);
+  auto symOps = symCrystal.getSymmetryOperations();
+  context.setUseSymmetries(useSyms);
+
+  auto invLVs = crystal.getDirectUnitCell().inverse();
+  auto LVs = crystal.getDirectUnitCell();
+
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+
+    Eigen::Matrix3d transportCoeffs;
+
+    // copy the 3x3 matrix of a single calculation
+    for (int j : {0, 1, 2}) {
+      for (int i : {0, 1, 2}) {
+        transportCoeffs(i,j) = allTransportCoeffs(iCalc,i,j);
+      }
+    }
+    // to hold the symmetrized coeffs
+    Eigen::Matrix3d symCoeffs;
+    symCoeffs.setZero();
+
+    for(SymmetryOperation symOp: symOps) {
+      Eigen::Matrix3d rotation = symOp.rotation;
+      rotation = LVs * rotation * invLVs; //convert to Cartesian
+      Eigen::Matrix3d rotationTranspose = rotation.transpose();
+      symCoeffs += rotationTranspose * transportCoeffs * rotation;
+    }
+    transportCoeffs = symCoeffs * (1. / symOps.size());
+
+    // place them back into the full tensor
+    for (int j : {0, 1, 2}) {
+      for (int i : {0, 1, 2}) {
+        allTransportCoeffs(iCalc,i,j) = transportCoeffs(i,j);
+      }
+    }
+  }
+}
+
