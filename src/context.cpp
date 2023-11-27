@@ -815,10 +815,8 @@ void Context::setupFromInput(const std::string &fileName) {
 
 void Context::checkDependentVariables() { 
 
-  // this shouldn't be used if we're symmetrizing
-  if(getSymmetrizeMatrix()) useUpperTriangle = false;
-
 }
+
 // helper functions for printInputSummary
 template <typename T>
 void printVector(const std::string& varName, std::vector<T> vec) {
