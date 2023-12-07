@@ -16,7 +16,7 @@ The installation requires the following packages are available:
 
 * CMake (a recent version)
 
-* A C++ compiler with C++14 support, whether GCC, Intel, or Clang
+* A C++ compiler with C++17 support, whether GCC, Intel, or Clang
 
 * MPI (although the code can compile without)
 
@@ -54,7 +54,7 @@ CMake will inspect the paths found in the environmental variable ``LD_LIBRARY_PA
 
 .. note::
    Phoebe often uses OMP through Kokkos. For best performance, you may want to follow the advice from Kokkos regarding OMP env variables:
-   "In general, for best performance with OpenMP 4.0 or better set ``OMP_PROC_BIND=spread`` and ``OMP_PLACES=threads``. For best performance with OpenMP 3.1 set OMP_PROC_BIND=true"
+   "In general, for best performance with OpenMP 4.0 or better set ``OMP_PROC_BIND=spread`` and ``OMP_PLACES=threads``. For best performance with OpenMP 3.1 set OMP_PROC_BIND=true". However, you should check for yourself that this improves performance as it's system dependent.  
 
 HDF5 build
 ^^^^^^^^^^
