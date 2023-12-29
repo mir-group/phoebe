@@ -31,7 +31,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
       massVariance = crystal.getAtomicIsotopeCouplings();
       Eigen::VectorXd masses = crystal.getAtomicMasses();
       if (masses.size() != massVariance.size() || masses.size() != numAtoms) {
-        Error("Developer Error: Problem setting up mass variance: inconsistent sizes.");
+        Error("problem setting up mass variance: incosistent sizes");
       }
       for (int i=0; i<masses.size(); i++) {
         massVariance(i) *= masses(i) * masses(i);
@@ -726,7 +726,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                           linewidth->operator()(iCalc, 0, iBte1) += rateIso;
                         }
                         if (is1 != is2Irr) {
-                          theMatrix(iMat1, iMat2) -=
+                          theMatrix(iMat1, iMat2) +=
                               rotation.inverse()(i, j) * rateIso;
                         }
                       }
@@ -736,11 +736,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                   if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
                     linewidth->operator()(iCalc, 0, iBte1) += rateIso;
                   }
-                  theMatrix(iBte1, iBte2) -= rateIso;
+                  theMatrix(iBte1, iBte2) += rateIso;
                 }
 
               } else if (switchCase == 1) { // case of matrix-vector multiplication
-                for (unsigned int iInput = 0; iInput < inPopulations.size(); iInput++) {
+                for (unsigned int iInput = 0; iInput < inPopulations.size();
+                     iInput++) {
 
                   // here we rotate the populations from the irreducible point
                   Eigen::Vector3d inPopRot;
@@ -752,11 +753,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                     }
                   }
                   for (int i : {0, 1, 2}) {
-		    // off-diagonal term
                     if (is1 != is2Irr) {
-                      outPopulations[iInput](iCalc, i, iBte1) -=
+                      outPopulations[iInput](iCalc, i, iBte1) +=
                           rateIso * inPopRot(i);
-                    } // diagonal term 
+                    }
                     outPopulations[iInput](iCalc, i, iBte1) +=
                         rateIso * inPopulations[iInput](iCalc, i, iBte1);
                   }
