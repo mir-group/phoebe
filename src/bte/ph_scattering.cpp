@@ -839,7 +839,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
             statisticsSweep.getCalcStatistics(iCalc).temperature;
         // n(n+1)
         double termPop = particle.getPopPopPm1(energy, temperature);
-        double rate = vel.squaredNorm() / boundaryLength * termPop;
+        double rate = sqrt(vel.squaredNorm()) / boundaryLength * termPop;
 
         if (switchCase == 0) { // case of matrix construction
           linewidth->operator()(iCalc, 0, iBte1) += rate;
