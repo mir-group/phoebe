@@ -62,9 +62,8 @@ const double velocityRyToSi = distanceRyToSi * rydbergSi / hBarSi;
 //
 // units for transport coefficients
 //
-const double thConductivityAuToSi =
-    kBoltzmannSi * rydbergSi / bohrRadiusSi / hBarSi;
-const double viscosityAuToSi = rydbergSi / hBarSi * bohrRadiusSi * bohrRadiusSi;
+const double thConductivityAuToSi = kBoltzmannSi * rydbergSi / bohrRadiusSi / hBarSi;
+const double viscosityAuToSi = 1./rydbergSi * pow(hBarSi,2) * 1./pow(bohrRadiusSi,3) * 1./timeRy;
 const double elConductivityAuToSi = electronSi * electronSi / hBarSi / bohrRadiusSi;
 const double mobilityAuToSi = electronSi / hBarSi * bohrRadiusSi * bohrRadiusSi;
 const double thermopowerAuToSi = kBoltzmannRy / electronSi * rydbergSi;
