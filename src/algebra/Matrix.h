@@ -182,6 +182,11 @@ class Matrix {
   /** Unary negation
    */
   Matrix<T> operator-() const;
+
+  /** Symmetrize the matrix
+  */
+  void symmetrize();
+
 };
 
 /* ------------------ constructor implementations -------------- */

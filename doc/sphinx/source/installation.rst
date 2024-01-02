@@ -175,7 +175,7 @@ MacOS
 
     export LIBRARY_PATH=$LIBRARY_PATH:/path/to/libgfortran/
 
-  In particular, if you are using a version of gcc installed using homebrew, you might need to link the "Cellar" copy of libgfortran. As an example working for gcc v9.3.0_1 is::
+  In particular, if you are using a version of gcc installed using homebrew, you might need to link the "Cellar" copy of libgfortran. As an example working for gcc 12 is::
 
     export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/Cellar/gcc/12.2.0/lib/gcc/12/
 

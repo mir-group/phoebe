@@ -154,10 +154,14 @@ ParallelMatrix<double>::diagonalize() {
      mpi->time();
   }
 
+  Kokkos::Profiling::pushRegion("pdsyevd");
+
   // call the function to now diagonalize
   pdsyevd_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
           eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0],
           work, &lwork, iwork, &liwork, &info);
+
+  Kokkos::Profiling::popRegion();
 
   if(mpi->mpiHead()) {
      std::cout << "Matrix diagonalization completed." << std::endl;
@@ -313,10 +317,15 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   allocate(work, 1);
   allocate(iwork, 1);
 
+
+  Kokkos::Profiling::pushRegion("pdsyevr");
+
   pdsyevr_(&jobz, &range, &uplo,  &numRows_, mat, &ia, &ja, &descMat_[0],
         &vl, &vu, &il, &iu, &m, &nz, eigenvalues,
         eigenvectors.mat, &iz, &jz, &eigenvectors.descMat_[0],
         work, &lwork, iwork, &liwork, &info);
+
+  Kokkos::Profiling::popRegion();
 
   lwork=int(work[0]);
   delete[] work;
@@ -408,6 +417,30 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   // note that the scattering matrix now has different values
   // it's going to be the upper triangle and diagonal of A
   return std::make_tuple(eigenvalues_, eigenvectors);
+}
+
+// executes A + AT/2
+template <>
+void ParallelMatrix<double>::symmetrize() {
+
+  // it seems scalapack will make us copy the matrix into a new one
+  ParallelMatrix<double> AT = *(this);
+
+  if (numRows_ != numCols_) {
+    Error("Cannot currently symmetrize a non-square matrix.");
+  }
+
+  int ia = 1;       // row index of start of A
+  int ja = 1;       // col index of start of A
+  int ic = 1;       // row index of start of C
+  int jc = 1;       // row index of start of C
+  double scale = 0.5; // 0.5 factors are for the 1/2 used in the sym (A + AT)/2.
+
+  // C here is the current matrix object stored by this class -- it will be overwritten,
+  // and the copy above will go out of scope.
+  //      C = beta*C + alpha*( A )^T
+  pdtran_(&numRows_, &numRows_, &scale, AT.mat, &ia, &ja, &descMat_[0], &scale, mat, &ic, &jc, &descMat_[0]);
+
 }
 
 #endif  // MPI_AVAIL

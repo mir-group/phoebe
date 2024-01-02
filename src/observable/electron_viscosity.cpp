@@ -1,174 +1,89 @@
 #include "electron_viscosity.h"
 #include "constants.h"
 #include "mpiHelper.h"
-#include <fstream>
+#include "viscosity_io.h"
 #include <iomanip>
-#include <nlohmann/json.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_ScatterView.hpp>
 
-ElectronViscosity::ElectronViscosity(Context &context_,
-                                     StatisticsSweep &statisticsSweep_,
-                                     Crystal &crystal_,
-                                     BaseBandStructure &bandStructure_)
-    : Observable(context_, statisticsSweep_, crystal_),
-      bandStructure(bandStructure_) {
+ElectronViscosity::ElectronViscosity(Context &context_, StatisticsSweep &statisticsSweep_,
+                                 Crystal &crystal_, BaseBandStructure &bandStructure_)
+    : Observable(context_, statisticsSweep_, crystal_), bandStructure(bandStructure_) {
 
-  tensordxdxdxd =
-      Eigen::Tensor<double, 5>(numCalculations, dimensionality, dimensionality,
-                               dimensionality, dimensionality);
+  tensordxdxdxd = Eigen::Tensor<double, 5>(numCalculations, dimensionality, dimensionality, dimensionality, dimensionality);
   tensordxdxdxd.setZero();
-}
 
-// copy constructor
-ElectronViscosity::ElectronViscosity(const ElectronViscosity &that)
-    : Observable(that), bandStructure(that.bandStructure) {}
-
-// copy assignment
-ElectronViscosity &ElectronViscosity::operator=(const ElectronViscosity &that) {
-  Observable::operator=(that);
-  if (this != &that) {
-    bandStructure = that.bandStructure;
+  // add a relevant spin factor
+  spinFactor = 2.;
+  if (context.getHasSpinOrbit()) {
+    spinFactor = 1.;
   }
-  return *this;
+
 }
 
 void ElectronViscosity::calcRTA(VectorBTE &tau) {
 
-  double spinFactor = 2.;
-  if (context.getHasSpinOrbit()) {
-    spinFactor = 1.;
-  }
-  double norm = spinFactor / context.getKMesh().prod() /
-                crystal.getVolumeUnitCell(dimensionality);
+  double Nk = context.getKMesh().prod();
+  double norm = spinFactor / Nk / crystal.getVolumeUnitCell(dimensionality);
   auto particle = bandStructure.getParticle();
   tensordxdxdxd.setZero();
-  auto excludeIndices = tau.excludeIndices;
+  //auto excludeIndices = tau.excludeIndices; // not used for electrons
 
   std::vector<int> iss = bandStructure.parallelIrrStateIterator();
   int niss = iss.size();
 
   Kokkos::View<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> tensordxdxdxd_k(tensordxdxdxd.data(), numCalculations, dimensionality, dimensionality, dimensionality, dimensionality);
   Kokkos::Experimental::ScatterView<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_tensordxdxdxd(tensordxdxdxd_k);
+
   Kokkos::parallel_for("electron_viscosity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
 
-      auto tmpTensor = scatter_tensordxdxdxd.access();
+    auto tmpTensor = scatter_tensordxdxdxd.access();
+    int is = iss[iis];
+    auto isIdx = StateIndex(is);
+    int iBte = bandStructure.stateToBte(isIdx).get();
 
-      int is = iss[iis];
-      auto isIdx = StateIndex(is);
+    auto en = bandStructure.getEnergy(isIdx);
+    auto velIrr = bandStructure.getGroupVelocity(isIdx);
+    auto kIrr = bandStructure.getWavevector(isIdx);
 
-      double en = bandStructure.getEnergy(isIdx);
-      Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
-      Eigen::Vector3d qIrr = bandStructure.getWavevector(isIdx);
+    auto rotations = bandStructure.getRotationsStar(isIdx);
+    for (const Eigen::Matrix3d& rotation : rotations) {
 
-      int iBte = bandStructure.stateToBte(isIdx).get();
-
-      // skip the acoustic phonons
-      if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte) !=
-          excludeIndices.end())
-      return;
-
-      auto rots = bandStructure.getRotationsStar(isIdx);
-      for (const Eigen::Matrix3d &rot : rots) {
-      Eigen::Vector3d vel = rot * velIrr;
-      Eigen::Vector3d q = rot * qIrr;
+      Eigen::Vector3d kPt = rotation * kIrr;
+      kPt = bandStructure.getPoints().bzToWs(kPt,Points::cartesianCoordinates);
+      Eigen::Vector3d vel = rotation * velIrr;
 
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        double temperature = calcStat.temperature;
-        double chemPot = calcStat.chemicalPotential;
-        double boseP1 = particle.getPopPopPm1(en, temperature, chemPot);
 
-        for (int l = 0; l < dimensionality; l++) {
-          for (int k = 0; k < dimensionality; k++) {
-            for (int j = 0; j < dimensionality; j++) {
-              for (int i = 0; i < dimensionality; i++) {
+        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+        double kBT = calcStat.temperature;
+        double chemPot = calcStat.chemicalPotential;
+        double fermiP1 = particle.getPopPopPm1(en, kBT, chemPot);
+
+        for (int i = 0; i < dimensionality; i++) {
+          for (int j = 0; j < dimensionality; j++) {
+            for (int k = 0; k < dimensionality; k++) {
+              for (int l = 0; l < dimensionality; l++) {
                 tmpTensor(iCalc, i, j, k, l) +=
-                  q(i) * vel(j) * q(k) * vel(l) * boseP1 *
-                  tau(iCalc, 0, iBte) / temperature * norm;
+                  kPt(i) * vel(j) * kPt(k) * vel(l) * fermiP1 * tau(iCalc, 0, iBte) / kBT * norm;
               }
             }
           }
         }
       }
-      }
+    }
   });
   Kokkos::Experimental::contribute(tensordxdxdxd_k, scatter_tensordxdxdxd);
-  /*
-
-#pragma omp parallel default(none)                                             \
-shared(bandStructure, tensordxdxdxd, excludeIndices, particle,             \
-statisticsSweep, tau, norm, spinFactor, niss, iss)
-{
-Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
-
-#pragma omp for nowait
-for (int iis = 0; iis < niss; iis++) {
-int is = iss[iis];
-auto isIdx = StateIndex(is);
-
-double en = bandStructure.getEnergy(isIdx);
-Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
-Eigen::Vector3d qIrr = bandStructure.getWavevector(isIdx);
-
-int iBte = bandStructure.stateToBte(isIdx).get();
-
-  // skip the acoustic phonons
-  if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte) !=
-  excludeIndices.end())
-  continue;
-
-  auto rots = bandStructure.getRotationsStar(isIdx);
-  for (const Eigen::Matrix3d &rot : rots) {
-  Eigen::Vector3d vel = rot * velIrr;
-  Eigen::Vector3d q = rot * qIrr;
-
-  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-  auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-  double temperature = calcStat.temperature;
-  double chemPot = calcStat.chemicalPotential;
-  double boseP1 = particle.getPopPopPm1(en, temperature, chemPot);
-
-  for (int l = 0; l < dimensionality; l++) {
-  for (int k = 0; k < dimensionality; k++) {
-  for (int j = 0; j < dimensionality; j++) {
-  for (int i = 0; i < dimensionality; i++) {
-  tmpTensor(iCalc, i, j, k, l) +=
-  q(i) * vel(j) * q(k) * vel(l) * boseP1 *
-  tau(iCalc, 0, iBte) / temperature * norm;
-  }
-  }
-  }
-  }
-  }
-  }
-  }
-#pragma omp critical
-tensordxdxdxd = tensordxdxdxd + tmpTensor;
-  //for (int l = 0; l < dimensionality; l++) {
-  //  for (int k = 0; k < dimensionality; k++) {
-  //    for (int j = 0; j < dimensionality; j++) {
-  //      for (int i = 0; i < dimensionality; i++) {
-  //        for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-  //          tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
-  //        }
-  //      }
-  //    }
-  //  }
-  //}
-  }
-  */
   mpi->allReduceSum(&tensordxdxdxd);
-  }
-void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
-    ParallelMatrix<double> &eigenvectors) {
+}
+
+void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues, ParallelMatrix<double> &eigenvectors) {
 
   if (numCalculations > 1) {
-    Error("Developer error: Electron viscosity cannot be calculated for more than one T.");
+    Error("Developer error: Relaxons electron viscosity cannot be calculated for more than one T.");
   }
 
-  // NOTE: view phonon viscosity for
-  // notes about which equations are calculated here.
+  // NOTE: view phonon viscosity for notes about which equations are calculated here.
 
   // we decide to skip relaxon states
   // 1) there is a relaxon with zero (or epsilon) eigenvalue -> infinite tau
@@ -176,193 +91,224 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
   // 3) states which are alpha > numRelaxons, which were not calculated to
   //    save computational expense.
 
+  // TODO pretty sure this should be used
+  // add a relevant spin factor
+  //double spinFactor = 2.;
+  //if (context.getHasSpinOrbit()) { spinFactor = 1.; }
+
   double volume = crystal.getVolumeUnitCell(dimensionality);
   auto particle = bandStructure.getParticle();
   int numRelaxons = eigenvalues.size();
+  double Nk = context.getKMesh().prod();
+  int numStates = bandStructure.getNumStates();
 
-  // to simplify, here I do everything considering there is a single
-  // temperature (due to memory constraints)
-  int iCalc = 0;
+  int iCalc = 0; // set to zero because of relaxons
   auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-  double temp = calcStat.temperature;
+  double kBT = calcStat.temperature;
   double chemPot = calcStat.chemicalPotential;
 
-  Eigen::Tensor<double, 3> fRelaxons(3, 3, bandStructure.getNumStates());
+  // print info about the special eigenvectors
+  // and save the indices that need to be skipped
+  relaxonEigenvectorsCheck(eigenvectors, numRelaxons);
+
+  // transform from the relaxon population basis to the electron population ------------
+  Eigen::Tensor<double, 3> fRelaxons(3, 3, numStates);
   fRelaxons.setZero();
   for (auto tup0 : eigenvectors.getAllLocalStates()) {
 
     int is = std::get<0>(tup0);
     int alpha = std::get<1>(tup0);
-    if (eigenvalues(alpha) <= 0. || alpha >= numRelaxons) {
-      continue;
-    }
+    if (eigenvalues(alpha) <= 0. || alpha >= numRelaxons) { continue; }
+    if (alpha == alpha0 || alpha == alpha_e) continue; // skip the energy eigenvector
+
     StateIndex isIdx(is);
-    Eigen::Vector3d vec = bandStructure.getWavevector(isIdx);
+    Eigen::Vector3d kPt = bandStructure.getWavevector(isIdx);
+    kPt = bandStructure.getPoints().bzToWs(kPt,Points::cartesianCoordinates);
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
     double en = bandStructure.getEnergy(isIdx);
-    double pop = particle.getPopPopPm1(en, temp, chemPot);
+    double pop = particle.getPopPopPm1(en, kBT, chemPot);
     // true sets a sqrt term
     for (int k = 0; k < dimensionality; k++) {
       for (int l = 0; l < dimensionality; l++) {
-        fRelaxons(k, l, alpha) += vec(k) * vel(l) * sqrt(pop) / temp /
+        fRelaxons(k, l, alpha) += kPt(k) * vel(l) * sqrt(pop) / kBT /
                                   eigenvalues(alpha) * eigenvectors(is, alpha);
       }
     }
   }
+  mpi->allReduceSum(&fRelaxons);
+
+  //if(mpi->mpiHead()) std::cout << "about to switch to relaxon populations " << std::endl;
 
   // transform from relaxon to electron populations
   Eigen::Tensor<double, 3> f(3, 3, bandStructure.getNumStates());
   f.setZero();
   for (auto tup0 : eigenvectors.getAllLocalStates()) {
+
     int is = std::get<0>(tup0);
     int alpha = std::get<1>(tup0);
-    if (eigenvalues(alpha) <= 0. || alpha >= numRelaxons) {
-      continue;
-    }
+    if (eigenvalues(alpha) <= 0. || alpha >= numRelaxons) { continue; }
+    if (alpha == alpha0 || alpha == alpha_e) continue; // skip the energy eigenvector
+
     for (int i : {0, 1, 2}) {
       for (int j : {0, 1, 2}) {
         f(i, j, is) += eigenvectors(is, alpha) * fRelaxons(i, j, alpha);
       }
     }
   }
+  mpi->allReduceSum(&f);
 
-  double norm = 1. / volume / context.getKMesh().prod();
+  // calculate the final viscosity --------------------------
+  double norm = 1. / volume / Nk;
   tensordxdxdxd.setZero();
   for (int is : bandStructure.parallelStateIterator()) {
+
     StateIndex isIdx(is);
-    Eigen::Vector3d vec = bandStructure.getWavevector(isIdx);
+    Eigen::Vector3d kPt = bandStructure.getWavevector(isIdx);
+    kPt = bandStructure.getPoints().bzToWs(kPt,Points::cartesianCoordinates);
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
     double en = bandStructure.getEnergy(isIdx);
-    double pop = particle.getPopPopPm1(en, temp, chemPot);
+    double ffm1 = particle.getPopPopPm1(en, kBT, chemPot);
 
     for (int i = 0; i < dimensionality; i++) {
       for (int j = 0; j < dimensionality; j++) {
         for (int k = 0; k < dimensionality; k++) {
           for (int l = 0; l < dimensionality; l++) {
-            // note: the sqrt(pop) is to rescale the population from the
-            // symmetrized exact BTE
+            // note: the sqrt(pop) is to rescale the population from the symmetrized exact BTE
             tensordxdxdxd(iCalc, i, j, k, l) +=
-                0.5 * pop * norm * sqrt(pop) *
-                (vec(i) * vel(j) * f(k, l, is) + vec(i) * vel(l) * f(k, j, is));
+                0.5 * ffm1 * norm * sqrt(ffm1) *
+                (kPt(i) * vel(j) * f(k, l, is) + kPt(i) * vel(l) * f(k, j, is));
           }
         }
       }
     }
   }
   mpi->allReduceSum(&tensordxdxdxd);
+  Kokkos::Profiling::popRegion();
+}
+
+// TODO could merge this into one function with the phonon one
+void ElectronViscosity::relaxonEigenvectorsCheck(ParallelMatrix<double>& eigenvectors, int& numRelaxons) {
+
+  // sets alpha0 and alpha_e, the indices
+  // of the special eigenvectors in the eigenvector list,
+  // to be excluded in later calculations
+  Particle particle = bandStructure.getParticle();
+  genericRelaxonEigenvectorsCheck(eigenvectors, numRelaxons, particle,
+                                 theta0, theta_e, alpha0, alpha_e);
+
+/*
+  // goal is to print and save the indices and scalar products of the special eigenvectors
+  // add a relevant spin factor
+  double spinFactor = 2.;
+  if (context.getHasSpinOrbit()) { spinFactor = 1.; }
+
+  double volume = crystal.getVolumeUnitCell(dimensionality);
+  auto particle = bandStructure.getParticle();
+  //int numRelaxons = eigenvalues.size();
+  double Nk = context.getKMesh().prod();
+  int numStates = bandStructure.getNumStates();
+
+  int iCalc = 0; // set to zero because of relaxons
+  auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+  double kBT = calcStat.temperature;
+  double T = calcStat.temperature / kBoltzmannRy;
+  double chemPot = calcStat.chemicalPotential;
+
+  // calculate the special eigenvectors' product with eigenvectors ----------------
+  // to report it's index and overlap + remove it from the calculation
+  C = 0; double U = 0;
+  theta0(numStates);  theta0.setZero();
+  theta_e(numStates); theta_e.setZero();
+  for (int is : bandStructure.parallelStateIterator()) {
+
+    auto isIdx = StateIndex(is);
+    auto en = bandStructure.getEnergy(isIdx);
+    double popM1 = particle.getPopPopPm1(en, kBT, chemPot);
+
+    theta0(is) = sqrt(popM1) * (en - chemPot) * sqrt(spinFactor);
+    theta_e(is) = sqrt(popM1) * sqrt(spinFactor);
+    U += popM1;
+    C += popM1 * (en - chemPot) * (en - chemPot);
+  }
+  mpi->allReduceSum(&theta0); mpi->allReduceSum(&theta_e);
+  mpi->allReduceSum(&C); mpi->allReduceSum(&U);
+  // apply normalizations
+  C *= spinFactor / (volume * Nk * kBT * T);
+  U *= spinFactor / (volume * Nk * kBT);
+  theta_e *= 1./sqrt(kBT * U * Nk * volume);
+  theta0 *= 1./sqrt(kBT * T * volume * Nk * C);
+
+  // calculate the overlaps with special eigenvectors
+  Eigen::VectorXd prodTheta0(numRelaxons); prodTheta0.setZero();
+  Eigen::VectorXd prodThetae(numRelaxons); prodThetae.setZero();
+  for (auto tup : eigenvectors.getAllLocalStates()) {
+
+    auto is = std::get<0>(tup);
+    auto gamma = std::get<1>(tup);
+    prodTheta0(gamma) += eigenvectors(is,gamma) * theta0(is);
+    prodThetae(gamma) += eigenvectors(is,gamma) * theta_e(is);
+
+  }
+  mpi->allReduceSum(&prodThetae); mpi->allReduceSum(&prodTheta0);
+
+  // find the element with the maximum product
+  prodTheta0 = prodTheta0.cwiseAbs();
+  prodThetae = prodThetae.cwiseAbs();
+  Eigen::Index maxCol0, idxAlpha0;
+  Eigen::Index maxCol_e, idxAlpha_e;
+  float maxTheta0 = prodTheta0.maxCoeff(&idxAlpha0, &maxCol0);
+  float maxThetae = prodThetae.maxCoeff(&idxAlpha_e, &maxCol_e);
+
+  if(mpi->mpiHead()) {
+    std::cout << std::fixed;
+    std::cout << std::setprecision(4);
+    std::cout << "Maximum scalar product theta_0.theta_alpha = " << maxTheta0 << " at index " << idxAlpha0 << "." << std::endl;
+    std::cout << "First ten products with theta_0:";
+    for(int gamma = 0; gamma < 10; gamma++) { std::cout << " " << prodTheta0(gamma); }
+    std::cout << "\n\nMaximum scalar product theta_e.theta_alpha = " << maxThetae << " at index " << idxAlpha_e << "." << std::endl;
+    std::cout << "First ten products with theta_e:";
+    for(int gamma = 0; gamma < 10; gamma++) { std::cout << " " << prodThetae(gamma); }
+    std::cout << std::endl;
+  }
+
+  // save these indices to the class objects
+  // if they weren't really found, we leave these indices
+  // as -1 so that no relaxons are skipped
+  if(maxTheta0 >= 0.75) alpha0 = idxAlpha0;
+  if(maxThetae >= 0.75) alpha_e = idxAlpha_e;
+*/
+}
+
+// calculate special eigenvectors
+void ElectronViscosity::calcSpecialEigenvectors() {
+
+  genericCalcSpecialEigenvectors(bandStructure, statisticsSweep,
+                          spinFactor, theta0, theta_e, phi, C, A);
 }
 
 void ElectronViscosity::print() {
-  if (!mpi->mpiHead())
-    return;
 
-  std::string units;
-  if (dimensionality == 1) {
-    units = "Pa s / m^2";
-  } else if (dimensionality == 2) {
-    units = "Pa s / m";
-  } else {
-    units = "Pa s";
-  }
+  std::string viscosityName = "Electron ";
+  printViscosity(viscosityName, tensordxdxdxd, statisticsSweep, dimensionality);
 
-  std::cout << "\n";
-  std::cout << "Electron Viscosity (" << units << ")\n";
-  std::cout << "i, j, k, eta[i,j,k,1,0], eta[i,j,k,1], eta[i,j,k,2]\n";
-
-  double conversion = pow(hBarSi, 2) // momentum is hBar q
-                      / pow(distanceRyToSi, dimensionality) // volume conversion
-                      * rydbergSi /
-                      hBarSi       // conversion time (q^2 v^2 tau = [time])
-                      / rydbergSi; // temperature conversion
-
-  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-
-    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-    double temp = calcStat.temperature;
-
-    std::cout << std::fixed;
-    std::cout.precision(2);
-    std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
-    std::cout.precision(5);
-    std::cout << std::scientific;
-    for (int i = 0; i < dimensionality; i++) {
-      for (int j = 0; j < dimensionality; j++) {
-        for (int k = 0; k < dimensionality; k++) {
-          std::cout << i << " " << j << " " << k;
-          for (int l = 0; l < dimensionality; l++) {
-            std::cout << " " << std::setw(12) << std::right
-                      << tensordxdxdxd(iCalc, i, j, k, l) * conversion;
-          }
-          std::cout << "\n";
-        }
-      }
-    }
-    std::cout << std::endl;
-  }
 }
 
 void ElectronViscosity::outputToJSON(const std::string &outFileName) {
 
-  if (mpi->mpiHead()) {
+  bool append = false; // it's a new file to write to
+  std::string viscosityName = "electronViscosity";
+  outputViscosityToJSON(outFileName, viscosityName,
+                tensordxdxdxd, append, statisticsSweep, dimensionality);
 
-    std::string units;
-    if (dimensionality == 1) {
-      units = "Pa s / m^2";
-    } else if (dimensionality == 2) {
-      units = "Pa s / m";
-    } else {
-      units = "Pa s";
-    }
+}
 
-    double conversion =
-        pow(hBarSi, 2)                        // momentum is hBar q
-        / pow(distanceRyToSi, dimensionality) // volume conversion
-        * rydbergSi / hBarSi // conversion time (q^2 v^2 tau = [time])
-        / rydbergSi;         // temperature conversion
 
-    std::vector<double> temps;
-    // this vector mess is of shape (iCalculations, iRows, iColumns, k, l)
-    std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>>
-        viscosity;
+void ElectronViscosity::outputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix) {
 
-    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+  // call the function in viscosity io
+  genericOutputRealSpaceToJSON(scatteringMatrix, bandStructure, statisticsSweep,
+                                theta0, theta_e, phi, C, A, context);
 
-      // store temperatures
-      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-      double temp = calcStat.temperature;
-      temps.push_back(temp * temperatureAuToSi);
-
-      // store viscosity
-      std::vector<std::vector<std::vector<std::vector<double>>>> rows;
-      for (int i = 0; i < dimensionality; i++) {
-        std::vector<std::vector<std::vector<double>>> cols;
-        for (int j = 0; j < dimensionality; j++) {
-          std::vector<std::vector<double>> ijk;
-          for (int k = 0; k < dimensionality; k++) {
-            std::vector<double> ijkl;
-            for (int l = 0; l < dimensionality; l++) {
-              ijkl.push_back(tensordxdxdxd(iCalc, i, j, k, l) * conversion);
-            }
-            ijk.push_back(ijkl);
-          }
-          cols.push_back(ijk);
-        }
-        rows.push_back(cols);
-      }
-      viscosity.push_back(rows);
-    }
-
-    // output to json
-    nlohmann::json output;
-    output["temperatures"] = temps;
-    output["electronViscosity"] = viscosity;
-    output["temperatureUnit"] = "K";
-    output["electronViscosityUnit"] = units;
-    output["particleType"] = "electron";
-    std::ofstream o(outFileName);
-    o << std::setw(3) << output << std::endl;
-    o.close();
-  }
 }
 
 int ElectronViscosity::whichType() { return is4Tensor; }
