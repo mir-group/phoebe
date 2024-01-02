@@ -1,3 +1,6 @@
+# run this in an empty directory, or in one directory outside your 
+# phoebe directory
+
 export OMP_ON="ON"
 export MPI_ON="ON"
 
