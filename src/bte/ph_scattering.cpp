@@ -726,7 +726,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                           linewidth->operator()(iCalc, 0, iBte1) += rateIso;
                         }
                         if (is1 != is2Irr) {
-                          theMatrix(iMat1, iMat2) +=
+                          theMatrix(iMat1, iMat2) -=
                               rotation.inverse()(i, j) * rateIso;
                         }
                       }
@@ -735,13 +735,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 } else {
                   if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
                     linewidth->operator()(iCalc, 0, iBte1) += rateIso;
+                    theMatrix(iBte1, iBte2) -= rateIso;
                   }
-                  theMatrix(iBte1, iBte2) += rateIso;
                 }
 
               } else if (switchCase == 1) { // case of matrix-vector multiplication
-                for (unsigned int iInput = 0; iInput < inPopulations.size();
-                     iInput++) {
+                for (unsigned int iInput = 0; iInput < inPopulations.size(); iInput++) {
 
                   // here we rotate the populations from the irreducible point
                   Eigen::Vector3d inPopRot;
@@ -754,9 +753,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                   }
                   for (int i : {0, 1, 2}) {
                     if (is1 != is2Irr) {
-                      outPopulations[iInput](iCalc, i, iBte1) +=
+	              // off diagonals
+                      outPopulations[iInput](iCalc, i, iBte1) -=
                           rateIso * inPopRot(i);
-                    }
+                    } // diagonals
                     outPopulations[iInput](iCalc, i, iBte1) +=
                         rateIso * inPopulations[iInput](iCalc, i, iBte1);
                   }
