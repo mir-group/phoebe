@@ -121,23 +121,25 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
   return polarCorrectionPart2(ev1, ev2, x);
 }
 
-Eigen::VectorXcd
-InteractionElPhWan::polarCorrectionPart1(const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3) {
+Eigen::VectorXcd InteractionElPhWan::polarCorrectionPart1(const Eigen::Vector3d &q3, 
+							  const Eigen::MatrixXcd &ev3) {
 
   // gather variables
   double volume = crystal.getVolumeUnitCell();
   Eigen::Matrix3d reciprocalUnitCell = crystal.getReciprocalUnitCell();
   Eigen::Matrix3d epsilon = phononH0->getDielectricMatrix();
   Eigen::Tensor<double, 3> bornCharges = phononH0->getBornCharges();
+  int dimensionality = crystal.getDimensionality();
   // must be in Bohr
   Eigen::MatrixXd atomicPositions = crystal.getAtomicPositions();
   Eigen::Vector3i qCoarseMesh = phononH0->getCoarseGrid();
 
-  return polarCorrectionPart1Static(q3, ev3, volume, reciprocalUnitCell,
-                                    epsilon, bornCharges, atomicPositions, qCoarseMesh);
+  return polarCorrectionPart1Static(q3, ev3, volume, reciprocalUnitCell, epsilon, 
+		  		bornCharges, atomicPositions, qCoarseMesh, dimensionality);
 }
 
 // compute g_L for block->wannierTransform
+// TODO would it not be simpler to pass the crystal object here? 
 Eigen::Tensor<std::complex<double>, 3>
 InteractionElPhWan::getPolarCorrectionStatic(
     const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
@@ -146,10 +148,10 @@ InteractionElPhWan::getPolarCorrectionStatic(
     const Eigen::Matrix3d &epsilon,
     const Eigen::Tensor<double, 3> &bornCharges,
     const Eigen::MatrixXd &atomicPositions,
-    const Eigen::Vector3i &qCoarseMesh) {
+    const Eigen::Vector3i &qCoarseMesh, const int dimensionality) {
 
-  Eigen::VectorXcd x = polarCorrectionPart1Static(q3, ev3, volume, reciprocalUnitCell,
-                                                  epsilon, bornCharges, atomicPositions, qCoarseMesh);
+  Eigen::VectorXcd x = polarCorrectionPart1Static(q3, ev3, volume, reciprocalUnitCell, epsilon, 
+		  		bornCharges, atomicPositions, qCoarseMesh, dimensionality);
   return polarCorrectionPart2(ev1, ev2, x);
 }
 
@@ -158,7 +160,8 @@ Eigen::VectorXcd InteractionElPhWan::polarCorrectionPart1Static(
     const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3,
     const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
     const Eigen::Matrix3d &epsilon, const Eigen::Tensor<double, 3> &bornCharges,
-    const Eigen::MatrixXd &atomicPositions, const Eigen::Vector3i &qCoarseMesh) {
+    const Eigen::MatrixXd &atomicPositions, const Eigen::Vector3i &qCoarseMesh, 
+    const int dimensionality) {
 
 
   // for 3D:

@@ -197,6 +197,8 @@ public:
   // functions to help with the calculation of the polar correction
   // as described in doi:10.1103/physRevLett.115.176401, Eq. 4
 
+  // Polar correction functions --------------------------------
+
   // This calculates the long range V_L component of g_L, to be used
   // in the qe->Wannier transformation
   static Eigen::Tensor<std::complex<double>, 3> getPolarCorrectionStatic(
@@ -206,7 +208,7 @@ public:
       const Eigen::Matrix3d &epsilon,
       const Eigen::Tensor<double, 3> &bornCharges,
       const Eigen::MatrixXd &atomicPositions,
-      const Eigen::Vector3i &qCoarseMesh);
+      const Eigen::Vector3i &qCoarseMesh, const int dimensionality);
 
   // this function calculates V_L for the "static" case used in the bloch->Wannier transform
   static Eigen::VectorXcd polarCorrectionPart1Static(
@@ -214,7 +216,7 @@ public:
         const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
         const Eigen::Matrix3d &epsilon, const Eigen::Tensor<double, 3> &bornCharges,
         const Eigen::MatrixXd &atomicPositions,
-        const Eigen::Vector3i &qCoarseMesh);
+        const Eigen::Vector3i &qCoarseMesh, const int dimensionality);
 
   // Sets up a call to polarCorrectionPart1Static for the calculation of V_L
   // during wannier interpolation of the matrix elements
