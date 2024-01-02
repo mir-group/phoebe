@@ -117,7 +117,7 @@ class Context {
   // currently only support parallelization of the qe2Phoebe app
 
   // if true, enforce the symmetrization of the scattering matrix
-  bool symmetrizeMatrix = false;
+  bool symmetrizeMatrix = true;
 
   // number of eigenvalues to use the in the relaxons solver
   int numRelaxonsEigenvalues = 0;
