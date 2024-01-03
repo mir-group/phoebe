@@ -156,6 +156,11 @@ void ScatteringMatrix::setup() {
   }
 }
 
+// Get/set elements
+double& ScatteringMatrix::operator()(const int &row, const int &col) {
+  return theMatrix(row,col);
+}
+
 // NOTE: this is returning the raw diagonal.
 // This includes whatever factors there are if it's Omega or not!
 VectorBTE ScatteringMatrix::diagonal() {
@@ -1305,4 +1310,10 @@ void ScatteringMatrix::symmetrizeCoupling(Eigen::Tensor<double,3>& coupling,
     // now skip to next iteration
     ib3 += degDegree - 1; // -1 because there's another addition in the loop
   }
+}
+
+std::vector<std::tuple<int, int>> ScatteringMatrix::getAllLocalStates() {
+
+  return theMatrix.getAllLocalStates();
+
 }

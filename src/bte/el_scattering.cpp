@@ -417,7 +417,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       StateIndex is1Idx(is1);
       auto vel = outerBandStructure.getGroupVelocity(is1Idx);
       int iBte1 = outerBandStructure.stateToBte(is1Idx).get();
-      double rate = vel.squaredNorm() / boundaryLength;
+      double rate = sqrt(vel.squaredNorm()) / boundaryLength;
 
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
