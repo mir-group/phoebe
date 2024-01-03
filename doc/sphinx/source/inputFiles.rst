@@ -980,7 +980,7 @@ symmetrizeMatrix
 
 * **Required:** no
 
-* **Default:** `false`
+* **Default:** `true`
 
 
 .. _numRelaxonsEigenvalues:
