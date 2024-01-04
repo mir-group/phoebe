@@ -147,7 +147,9 @@ Phonon BTE Solver
 
 * :ref:`useSymmetries`
 
+* :ref:`numRelaxonsEigenvalues`
 
+* :ref:`checkNegativeRelaxons`
 
 .. raw:: html
 
@@ -156,15 +158,19 @@ Phonon BTE Solver
 ::
 
   appName = "phononTransport"
+
   phFC2FileName = "./ForceConstants2nd"
-  sumRuleFC2 = "crystal"
   phFC3FileName = "./ForceConstants3rd"
+  sumRuleFC2 = "crystal"
   qMesh = [10,10,10]
   temperatures = [300.]
   smearingMethod = "adaptiveGaussian"
   solverBTE = ["variational","relaxons"]
   scatteringMatrixInMemory = true
   boundaryLength = 10. mum
+
+  #if using RTA or iterative solvers only, uncomment this
+  #useSymmetries = true
 
 -------------------------------------
 
@@ -214,8 +220,6 @@ Electron BTE Solver
 
 * :ref:`smearingWidth`
 
-* :ref:`windowType`
-
 * :ref:`dimensionality`
 
 * :ref:`constantRelaxationTime`
@@ -242,6 +246,11 @@ Electron BTE Solver
 
 * :ref:`useSymmetries`
 
+* :ref:`numRelaxonsEigenvalues`
+
+* :ref:`checkNegativeRelaxons`
+
+
 .. raw:: html
 
   <h3>Sample input file</h3>
@@ -249,10 +258,11 @@ Electron BTE Solver
 ::
 
   appName = "electronWannierTransport"
+
   phFC2FileName = "./silicon.fc"
-  sumRuleFC2 = "crystal"
   electronH0Name = "./si_tb.dat",
   elphFileName = "silicon.phoebe.elph.dat"
+  sumRuleFC2 = "crystal"
   kMesh = [15,15,15]
   temperatures = [300.]
   dopings = [1.e21]
@@ -964,7 +974,35 @@ scatteringMatrixInMemory
 symmetrizeMatrix
 ^^^^^^^^^^^^^^^^
 
-* **Description:** If true, we enforce the symmetrix property of the scattering matrix A by doing A=(A^T+A)/2, where the transpose operation is made with respect to the wavevector indices. This operation increases the stability of the variational and relaxon solvers. Set this variable to false to increase the speed of the simulation in exchange for additional numerical noise.
+* **Description:** If true, we enforce the symmetrix property of the scattering matrix A by doing A=(A^T+A)/2, where the transpose operation is made with respect to the wavevector indices. This operation increases the stability of the variational and relaxon solvers, but is computationally expensive in large system sizes. If you find your calculation has many negative relaxons eigenvalues, you might want to turn this on. This may also be favorable for your final production calculations.
+
+* **Format:** *bool*
+
+* **Required:** no
+
+* **Default:** `true`
+
+
+.. _numRelaxonsEigenvalues:
+
+numRelaxonsEigenvalues
+^^^^^^^^^^^^^^^^^^^^^^
+
+* **Description:** Compute the relaxons solver using only the ``numRelaxonsEigenvalues`` largest eigenvalues + corresponding eigenvectors. This can dramatically reduce the cost of the calculation, as the largest eigenvalues comprise most of the result. However, you have to be careful to converge the calculation with respect to this parameter as well if you use it. It's great for testing your calculation, perhaps using ~25% of the eigenvalues, with your final production result using a full calculation.
+Additionally, note that this leads to a second ScaLAPACK call to check for negative eigenvalues, which reduces the benefit of partial eigenvalue calculation. If you want to turn this off for additional cost reduction (though it's good to check this to ensure the quality of the scattering matrix) you can do so with :ref:`checkNegativeRelaxons` = false.
+
+* **Format:** *integer*
+
+* **Required:** no
+
+* **Default:** `0` (this indicates the code should compute all eigenvalues)
+
+.. _checkNegativeRelaxons:
+
+checkNegativeRelaxons
+^^^^^^^^^^^^^^^^^^^^^
+
+* **Description:** When using the relaxons solver for only ``numRelaxonsEigenvalues`` largest relaxon eigenvalues, the check for negative eigenvalues (to ensure the quality of the calculation) is done by a second ScaLAPACK call. Thoguh it's good to inspect the output of this check, if you want to turn this off, set this variable to false for additional speedup.
 
 * **Format:** *bool*
 
@@ -978,7 +1016,7 @@ symmetrizeMatrix
 distributedElPhCoupling
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-* **Description:** If true, the electron-phonon coupling in the Wannier representation is distributed over MPI processes, helping reducing the memory requirements of a run. The MPI parallelization takes place over the number of irreducible q-points of the phonon calculation (which sets the upper number of MPI processes that can be used). If false, the electron-phonon coupling tensor is not distributed over MPI processes: calculations will be faster, but in exchange for a much larger memory requirement that can cause segmentation faults for some large use cases.
+* **Description:** If true, the electron-phonon coupling in the Wannier representation is distributed over MPI processes in the QE to Phoebe application (the transform of the el-ph matrix elements to the real-space Wannier basis), helping reducing the memory requirements of a run. The MPI parallelization takes place over the number of irreducible q-points of the phonon calculation (which sets the upper number of MPI processes that can be used). If false, the electron-phonon coupling tensor is not distributed over MPI processes: calculations will be faster, but in exchange for a much larger memory requirement that can cause segmentation faults for some large use cases. The maximum possible distribution is num MPI processes = num dyn files. 
 
 * **Format:** *bool*
 
@@ -1006,7 +1044,11 @@ hdf5ElPhFileFormat
 windowType
 ^^^^^^^^^^
 
-* **Description:** Enables the window used to discard phonon or electron states that don't contribute to transport. For phonon transport, we discard phonon states, and for electron transport, we discard electron states. Possible values are "nothing", "population" and "energy". "nothing" means window is not applied; "population" means phonon states are discarded if :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit, where :math:`\frac{\partial \bar{n}}{\partial T}` is the Bose--Einstein distribution derivative, with the same procedure used for electronic transport, just instead with a Fermi--Dirac function. The "energy" window discards states which fall outside the :ref:`windowEnergyLimit`. States are removed at each wavevector point, which means each wavevector can have a different number of bands.
+* **Description:** Enables the window used to discard phonon or electron states that don't contribute to transport. For phonon transport, we discard phonon states, and for electron transport, we discard electron states. Possible values are "nothing", "population" and "energy".
+  * "nothing" means window is not applied.
+  * "population" means phonon states are discarded if :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit, where :math:`\frac{\partial \bar{n}}{\partial T}` is the Bose--Einstein distribution derivative, with the same procedure used for electronic transport, just instead with a Fermi--Dirac function.
+  * "energy" discards states which fall outside the :ref:`windowEnergyLimit`. States are removed at each wavevector point, which means each wavevector can have a different number of bands. Here, the user specifies with :ref:`windowEnergyLimit` the energy range desired using absolute energies, not those relative to the chemical potential.
+  * "muCenteredEnergy" works almost identically to the "energy" window -- however, in this case, the user uses :ref:`windowEnergyLimit` to specify the energy range relative to the chemical potential. For example, if :math:`mu = 2` eV, and :ref:`windowEnergyLimit` = [-0.1, 0.1], only states with energies in the range [1.9, 2.1] eV would be included in the calculation.
 
 * **Format:** *string*
 
@@ -1019,11 +1061,11 @@ windowType
 windowEnergyLimit
 ^^^^^^^^^^^^^^^^^
 
-* **Description:** Additional parameter for energy :ref:`windowType`. Specify two values :math:`E_{min}` and :math:`E_{max}` (in electronVolts) such that we discard all phonon states  with energy outside of these bounds.
+* **Description:** Additional parameter for energy :ref:`windowType`. Specify two values :math:`E_{min}` and :math:`E_{max}` (in electronVolts) such that we discard all states (phonon or electron, depending on the calculation type) with energy outside of these bounds. When :ref:`windowType` = "muCenteredEnergy", this window specifies the energy range around the chemical potential to be included in the calculation (see :ref:`windowType` for more details).
 
 * **Format:** *list of doubles*
 
-* **Required:** yes (if :ref:`windowType` = "energy")
+* **Required:** yes (if :ref:`windowType` = "energy" or "muCenteredEnergy")
 
 
 .. _windowPopulationLimit:
@@ -1031,12 +1073,13 @@ windowEnergyLimit
 windowPopulationLimit
 ^^^^^^^^^^^^^^^^^^^^^
 
-* **Description:** Required if :ref:`windowType` = "population". Cutoff values for discarding phonon states based on their equilibrium phonon occupation number, such that :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit.
+* **Description:** Used if :ref:`windowType` = "population". Cutoff values for discarding states (phonon or electron, depending on the calculation type) based on their equilibrium phonon occupation number, such that :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit.
 
 * **Format:** *double*
 
 * **Required:** no (optional if :ref:`windowType` = "population")
 
+* **Default:** `1e-10`
 
 .. _maxIterationsBTE:
 
@@ -1379,9 +1422,9 @@ epaEnergyRange
 deltaPath
 ^^^^^^^^^
 
-* **Description:** This variable controls how far apart are the wavevectors when a path in the Brillouin zone is specified, and it represents the distance (in Bohr) between wavevectors. Can be used when a path of wavevectors is specified with the :ref:`beginEndPointPath` key.
+* **Description:** This variable controls how far apart are the wavevectors when a path in the Brillouin zone is specified, and it represents the distance between wavevectors on the band path in crystal coordinates. Can be used when a path of wavevectors is specified with the :ref:`beginEndPointPath` key.
 
-* Default: 0.05 Bohr:sup:`-1`
+* Default: 0.05
 
 * **Format:** *string*
 
@@ -1455,6 +1498,8 @@ numOccupiedStates
 ^^^^^^^^^^^^^^^^^
 
 * **Description:** Determines the number of occupied Kohn-Sham states at the ground state. The default value might be read from the :ref:`electronH0Name` (when this is the Quantum-ESPRESSO xml file) or the file with the el-ph interaction (so, the user may not need to specify it for transport calculations). This value controls where the Fermi level is set. The user alternatively can specify the :ref:`fermiLevel` (and :ref:`numOccupiedStates` will be computed from the Fermi level).
+
+Be aware that this is essentially the number of filled bands -- so if the number of electrons in the DFT calculation is say, 27, and the calculation is not spin polarized, then the numOccupiedStates should be set as 13.5. In general, it's good to ensure that the value of :math:`E_F` found in the DFT calculation matches the one calculated by Phoebe. 
 
 * **Format:** *double*
 

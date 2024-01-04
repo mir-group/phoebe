@@ -25,25 +25,7 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
   }
 
   isMatrixOmega = true;
-
   highMemory = context.getScatteringMatrixInMemory();
-}
-
-ElScatteringMatrix::ElScatteringMatrix(const ElScatteringMatrix &that)
-    : ScatteringMatrix(that), couplingElPhWan(that.couplingElPhWan),
-      h0(that.h0), boundaryLength(that.boundaryLength),
-      doBoundary(that.doBoundary) {}
-
-ElScatteringMatrix &
-ElScatteringMatrix::operator=(const ElScatteringMatrix &that) {
-  ScatteringMatrix::operator=(that);
-  if (this != &that) {
-    couplingElPhWan = that.couplingElPhWan;
-    h0 = that.h0;
-    boundaryLength = that.boundaryLength;
-    doBoundary = that.doBoundary;
-  }
-  return *this;
 }
 
 // 3 cases:
@@ -435,7 +417,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       StateIndex is1Idx(is1);
       auto vel = outerBandStructure.getGroupVelocity(is1Idx);
       int iBte1 = outerBandStructure.stateToBte(is1Idx).get();
-      double rate = vel.squaredNorm() / boundaryLength;
+      double rate = sqrt(vel.squaredNorm()) / boundaryLength;
 
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 

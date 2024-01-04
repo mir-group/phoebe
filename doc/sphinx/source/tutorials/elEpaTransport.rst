@@ -166,7 +166,7 @@ If the code run successfully, you should see a new file ``silicon.fc``.
 Step 5: Non-self-consistent run
 -------------------------------
 
-Before we can run Phoebe, we need to complete one more step using Quantum ESPRESSO. We need to use an non-self-consistent run run to calculate the electronic properties on the k-point mesh.
+Before we can run Phoebe, we need to complete one more step using Quantum ESPRESSO. We need to use an non-self-consistent run to calculate the electronic properties on the k-point mesh.
 We do so using the input file ``bands.in`` in the ``Silicon-epa`` example folder::
 
   &control
@@ -348,6 +348,11 @@ You can learn more about how to post-process these files at :ref:`postprocessing
 
 * ``epa_relaxation_times.json``: contains the EPA relaxation times at each energy bin value.
 
+
+To understand how to parse these files in more detail, take a look at the scripts described by the :ref:`postprocessing` page. In particular, if you want to plot lifetimes vs. energy, look at ``tau.py``. If you want to plot the transport coefficients vs. doping or temperature, check out ``transport_coefficients.py``.
+
+.. note::
+   It's a good idea to also use bands.py to plot the band structure. Fourier interpolation of the band structure can be a source of error -- you may need to go to higher k-point meshes to get a reasonable interpolation of the band structure. Check the bands at this stage to make sure they are similar to the true DFT bands -- otherwise, your results could be problematic!
 
 Convergence Checklist
 ----------------------

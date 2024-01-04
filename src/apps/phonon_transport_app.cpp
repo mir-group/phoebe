@@ -6,6 +6,7 @@
 #include "ifc3_parser.h"
 #include "observable.h"
 #include "parser.h"
+#include "phel_scattering.h"
 #include "ph_scattering.h"
 #include "phonon_thermal_cond.h"
 #include "phonon_viscosity.h"
@@ -16,14 +17,22 @@
 
 void PhononTransportApp::run(Context &context) {
 
-  // Read the necessary input files
+  // TODO make these two each optional, and that we can run if only one or the other is defed
+  // collect information about the run from context
+  bool usePhPhInteraction = !context.getPhFC3FileName().empty();
+  bool usePhElInteraction = !context.getElphFileName().empty();
+  bool useCRTA = std::isnan(context.getConstantRelaxationTime());
 
+  if(!usePhPhInteraction && !usePhElInteraction && !useCRTA) {
+    Error("To run the ph transport app beyond CRTA, supply a ph-ph or el-ph file!");
+  }
+
+  // Read the necessary input files
   auto tup = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
   // first we make compute the band structure on the fine grid
-
   Points fullPoints(crystal, context.getQMesh());
 
   if (mpi->mpiHead()) {
@@ -37,7 +46,7 @@ void PhononTransportApp::run(Context &context) {
   if (mpi->mpiHead()) {
     if(bandStructure.hasWindow() != 0) {
         std::cout << "Window selection reduced phonon band structure from "
-                << fullPoints.getNumPoints()*phononH0.getNumBands() << " to "
+                << fullPoints.getNumPoints() * phononH0.getNumBands() << " to "
                 << bandStructure.getNumStates() << " states."  << std::endl;
     }
     if(context.getUseSymmetries()) {
@@ -49,6 +58,10 @@ void PhononTransportApp::run(Context &context) {
   }
 
   // load the 3phonon coupling
+  if (mpi->mpiHead()) {
+    std::cout << "Starting anharmonic scattering calculation." << std::endl;
+  }
+  // this also checks that the crystal is the same one read in for 3ph
   auto coupling3Ph = IFC3Parser::parse(context, crystal);
 
   // build/initialize the scattering matrix and the smearing
@@ -56,13 +69,42 @@ void PhononTransportApp::run(Context &context) {
                                       bandStructure, &coupling3Ph, &phononH0);
   scatteringMatrix.setup();
 
+  // if requested in input, load the phononElectron information
+  // we save only a vector BTE to add to the phonon scattering matrix,
+  // as the phonon electron lifetime only contributes to the digaonal
+  if(usePhElInteraction) {
+
+    // could be possible to do this?
+    // don't proceed if we use more than one doping concentration:
+    // we'd need slightly different statisticsSweep for the 2 scatterings
+    int numMu = statisticsSweep.getNumChemicalPotentials();
+    if (numMu != 1) {
+        Error("Can currenly only add ph-el scattering one doping "
+          "concentration at the time. Let us know if you want to have multiple mu values as a feature.");
+    }
+    if (mpi->mpiHead()) {
+      std::cout << "\nStarting phonon-electron scattering calculation." << std::endl;
+    }
+    VectorBTE phElLinewidths = getPhononElectronLinewidth(context, crystal,
+                                                        bandStructure, phononH0);
+
+    // if we're using both phel and phph times, we should output
+    // each independent linewidth set. PhEl is output above.
+    scatteringMatrix.outputToJSON("rta_phph_relaxation_times.json");
+
+    // add in the phel linewidths -- use getLinewidths to remove pop factors
+    VectorBTE totalRates = scatteringMatrix.getLinewidths();
+    totalRates = totalRates + phElLinewidths;
+    scatteringMatrix.setLinewidths(totalRates);
+
+  }
+
   // solve the BTE at the relaxation time approximation level
   // we always do this, as it's the cheapest solver and is required to know
   // the diagonal for the exact method.
 
   if (mpi->mpiHead()) {
-    std::cout << "\n"
-              << std::string(80, '-') << "\n\n"
+    std::cout << "\n" << std::string(80, '-') << "\n\n"
               << "Solving BTE within the relaxation time approximation."
               << std::endl;
   }
@@ -78,15 +120,13 @@ void PhononTransportApp::run(Context &context) {
   scatteringMatrix.outputToJSON("rta_ph_relaxation_times.json");
 
   // compute the thermal conductivity
-  PhononThermalConductivity phTCond(context, statisticsSweep, crystal,
-                                    bandStructure);
+  PhononThermalConductivity phTCond(context, statisticsSweep, crystal, bandStructure);
   phTCond.calcFromPopulation(popRTA);
   phTCond.print();
   phTCond.outputToJSON("rta_phonon_thermal_cond.json");
 
   // compute the Wigner thermal conductivity
-  WignerPhononThermalConductivity phTCondWigner(
-      context, statisticsSweep, crystal, bandStructure, phononRelTimes);
+  WignerPhononThermalConductivity phTCondWigner(context, statisticsSweep, crystal, bandStructure, phononRelTimes);
   phTCondWigner.calcFromPopulation(popRTA);
   phTCondWigner.print();
   phTCondWigner.outputToJSON("wigner_phonon_thermal_cond.json");
@@ -107,20 +147,16 @@ void PhononTransportApp::run(Context &context) {
     std::cout << "\n" << std::string(80, '-') << "\n" << std::endl;
   }
 
-  // if requested, we solve the BTE exactly
-
+  // if requested, we solve the BTE exactly -----------------------------
   std::vector<std::string> solverBTE = context.getSolverBTE();
 
   bool doIterative = false;
   bool doVariational = false;
   bool doRelaxons = false;
   for (const auto &s : solverBTE) {
-    if (s.compare("iterative") == 0)
-      doIterative = true;
-    if (s.compare("variational") == 0)
-      doVariational = true;
-    if (s.compare("relaxons") == 0)
-      doRelaxons = true;
+    if (s.compare("iterative") == 0) {   doIterative = true; }
+    if (s.compare("variational") == 0) {  doVariational = true; }
+    if (s.compare("relaxons") == 0) {    doRelaxons = true; }
   }
 
   // here we do validation of the input, to check for consistency
@@ -154,7 +190,6 @@ void PhononTransportApp::run(Context &context) {
         // A -> ( A^T + A ) / 2
         // this helps removing negative eigenvalues which may appear due to noise
         scatteringMatrix.symmetrize();
-        // it may not be necessary, so it's commented out
       }
     }
   }
@@ -349,27 +384,33 @@ void PhononTransportApp::run(Context &context) {
     if (mpi->mpiHead()) {
       std::cout << "Starting relaxons BTE solver" << std::endl;
     }
-
     scatteringMatrix.a2Omega();
 
-    auto tup2 = scatteringMatrix.diagonalize();
+    // Calculate Du(i,j) before we diagonalize the matrix and ruin it
+    // to calculate D we need the phi vectors, so we here calculate ahead of time
+    // here -- they are saved internally to the class
+    phViscosity.calcSpecialEigenvectors();
+    // create the real space solver transport coefficients
+    phViscosity.outputRealSpaceToJSON(scatteringMatrix);
+
+    // NOTE: scattering matrix is destroyed in this process, do not use it afterwards!
+    auto tup2 = scatteringMatrix.diagonalize(context.getNumRelaxonsEigenvalues());
     auto eigenvalues = std::get<0>(tup2);
     auto eigenvectors = std::get<1>(tup2);
     // EV such that Omega = V D V^-1
     // eigenvectors(phonon index, eigenvalue index)
 
+    // TODO what is the scattering matrix doing here
     phTCond.calcFromRelaxons(context, statisticsSweep, eigenvectors,
                              scatteringMatrix, eigenvalues);
     phTCond.print();
     phTCond.outputToJSON("relaxons_phonon_thermal_cond.json");
+
     // output relaxation times
-    scatteringMatrix.relaxonsToJSON("relaxons_relaxation_times.json",
-                                    eigenvalues);
+    scatteringMatrix.relaxonsToJSON("relaxons_relaxation_times.json", eigenvalues);
 
     if (!context.getUseSymmetries()) {
-      Vector0 boseEigenvector(statisticsSweep, bandStructure, specificHeat);
-      phViscosity.calcFromRelaxons(boseEigenvector, eigenvalues,
-                                   scatteringMatrix, eigenvectors);
+      phViscosity.calcFromRelaxons(eigenvalues, eigenvectors);
       phViscosity.print();
       phViscosity.outputToJSON("relaxons_phonon_viscosity.json");
     }
@@ -382,6 +423,98 @@ void PhononTransportApp::run(Context &context) {
   mpi->barrier();
 }
 
+// helper function to generate phEl rates
+VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Crystal& crystalPh,
+                                                         ActiveBandStructure &phBandStructure,
+                                                         PhononH0& phononH0) {
+
+    // load electron band structure
+    auto t1 = Parser::parseElHarmonicWannier(context, &crystalPh);
+    auto crystalEl = std::get<0>(t1);
+    auto electronH0 = std::get<1>(t1);
+
+    // check that the crystal in the elph calculation is the
+    // same as the one in the phph calculation
+    if (crystalPh.getDirectUnitCell() != crystalEl.getDirectUnitCell()) {
+      Error("Phonon-electrons scattering requested, but crystals used for ph-ph and \n"
+        "ph-el scattering are not the same!");
+    }
+
+    // load the elph coupling
+    // Note: this file contains the number of electrons
+    // which is needed to understand where to place the fermi level
+    auto couplingElPh = InteractionElPhWan::parse(context, crystalPh, &phononH0);
+
+    // compute the band structure on the fine grid
+    if (mpi->mpiHead()) {
+      std::cout << "\nComputing electronic band structure for ph-el scattering.\n"
+                << std::endl;
+    }
+
+    // update the window so that it's only a very narrow
+    // scale slice around mu, 1.25* the max phonon energy
+    double maxPhEnergy = phBandStructure.getMaxEnergy();
+    auto inputWindowType = context.getWindowType();
+    context.setWindowType("muCenteredEnergy");
+    if(mpi->mpiHead()) {
+      std::cout << "Of the active phonon modes, the maximum energy state is " <<
+          maxPhEnergy*energyRyToEv*1e3 << " meV." <<
+          "\nSelecting states within +/- 1.25 x " << maxPhEnergy*energyRyToEv*1e3 << " meV"
+          << " of max/min electronic mu values." << std::endl;
+    }
+    Eigen::Vector2d range = {-1.25*maxPhEnergy,1.25*maxPhEnergy};
+    context.setWindowEnergyLimit(range);
+
+    // construct electronic band structure
+    Points fullPoints(crystalPh, context.getKMesh());
+    auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
+    auto elBandStructure = std::get<0>(t3);
+    auto statisticsSweep = std::get<1>(t3);
+
+    // don't proceed if we use more than one doping concentration --
+    // phph scattering only has 1 mu value, therefore the linewidths won't add to it correctly
+    int numMu = statisticsSweep.getNumChemicalPotentials();
+    if (numMu != 1) {
+        Error("Can currenly only add ph-el scattering one doping "
+          "concentration at the time. Let us know if you want to have multiple mu values as a feature.");
+    }
+
+    // print some info about how window and symmetries have reduced el bands
+    if (mpi->mpiHead()) {
+      if(elBandStructure.hasWindow() != 0) {
+          std::cout << "Window selection reduced electronic band structure from "
+                  << fullPoints.getNumPoints() * electronH0.getNumBands() << " to "
+                  << elBandStructure.getNumStates() << " states."  << std::endl;
+      }
+      if(context.getUseSymmetries()) {
+        std::cout << "Symmetries reduced electronic band structure from "
+          << elBandStructure.getNumStates() << " to "
+          << elBandStructure.irrStateIterator().size() << " states." << std::endl;
+      }
+      std::cout << "Done computing electronic band structure.\n" << std::endl;
+    }
+
+    // build/initialize the scattering matrix and the smearing
+    // it shouldn't take up too much memory, as it's just
+    // the diagonal -- be careful to put elBandStruct first
+    PhElScatteringMatrix phelScatteringMatrix(context, statisticsSweep,
+                                              elBandStructure, phBandStructure,
+                                              couplingElPh, electronH0);
+
+    if(int(elBandStructure.irrStateIterator().size()) < mpi->getSize()) {
+      Error("Cannot calculate PhEl scattering matrix with fewer states than\n"
+        "number of MPI processes. Reduce the number of MPI processes,\n"
+        "perhaps use more OMP threads instead.");
+    }
+    phelScatteringMatrix.setup();
+    phelScatteringMatrix.outputToJSON("rta_phel_relaxation_times.json");
+
+    // important to use getLinewidths here instead of diagonal() -- they
+    // do not return the same thing (diagonal has population factors)
+    VectorBTE phononElectronRates = phelScatteringMatrix.getLinewidths();
+    return phononElectronRates;
+}
+
 void PhononTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getPhFC2FileName(), "PhFC2FileName");
   throwErrorIfUnset(context.getQMesh(), "qMesh");
@@ -391,5 +524,13 @@ void PhononTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
   if (context.getSmearingMethod() == DeltaFunction::gaussian) {
     throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
+  }
+  if (!context.getElphFileName().empty()) {
+    throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+    throwErrorIfUnset(context.getKMesh(), "kMesh");
+    if (context.getDopings().size() == 0 &&
+        context.getChemicalPotentials().size() == 0) {
+      Error("Either chemical potentials or dopings must be set");
+    }
   }
 }

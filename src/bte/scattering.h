@@ -27,14 +27,6 @@ public:
                    BaseBandStructure &innerBandStructure_,
                    BaseBandStructure &outerBandStructure_);
 
-  /** Copy constructor
-   */
-  ScatteringMatrix(const ScatteringMatrix &that);
-
-  /** Copy assignment operator
-   */
-  ScatteringMatrix &operator=(const ScatteringMatrix &that);
-
   /** Destructor
    */
   ~ScatteringMatrix();
@@ -49,9 +41,18 @@ public:
   void setup();
 
   /** Returns the diagonal matrix elements.
-   * @return diagonal: a VectorBTE containing the linewidths.
+   *  For the case of electrons, this is the linewidths -- A_out = Linewidths
+   *  For the case of phonons, this is A_out = linewidths * n(n+1)
+   * @return diagonal: a VectorBTE containing the diagonal of the scattering matrix.
    */
   VectorBTE diagonal();
+
+  /** Get and set operator.
+   * Returns the stored value if the matrix element (row,col) is stored in
+   * memory by the MPI process, otherwise returns zero.
+   * Just calls this on the underlying PMatrix object
+   */
+  double& operator()(const int &row, const int &col);
 
   /** Computes the product A*f - diagonal(A)*f
    * where A is the scattering matrix and f is the vector of quasiparticle
@@ -73,10 +74,11 @@ public:
 //   */
 //  ParallelMatrix<double> dot(const ParallelMatrix<double> &otherMatrix);
 
-  /** Call to obtain the single-particle relaxation times of the system.s
+  /** Call to obtain the single-particle relaxation times of the systems
+   * @param int: which times to output, 0 = internalDiagonal, 1 = normal, 2 = umklapp
    * @return tau: a VectorBTE object storing the relaxation times
    */
-  VectorBTE getSingleModeTimes();
+  VectorBTE getSingleModeTimes(const int whichTimes = 0);
 
   /** Call to obtain the single-particle linewidths.
    *
@@ -93,9 +95,18 @@ public:
    * transport relaxation time that enters the transport equations, and satisfy
    * the relation Gamma_i * Tau_i = f_i * (1-f_i)
    *
+   * Regardless, this function just returns Gamma
+   *
    * @return linewidths: a VectorBTE object storing the linewidths
    */
   VectorBTE getLinewidths();
+
+  /** Call to set the single-particle linewidths.
+   *
+   *  See getLinewidths function for notes about linewidths.
+   *  @param linewidths: this is Gamma, without any population factors
+   */
+  void setLinewidths(VectorBTE &linewidths);
 
   /** Converts the scattering matrix from the form A to the symmetrised Omega.
    * A acts on the canonical phonon population f, while Omega acts on the
@@ -112,11 +123,14 @@ public:
 //  void omega2A();
 
   /** Diagonalize the scattering matrix
+   * @param numEigenvalues: if a number is supplied, calculate
+   *                only the first few of these points
    * @return eigenvalues: a Eigen::VectorXd with the eigenvalues
    * @return eigenvectors: a Eigen::MatrixXd with the eigenvectors
    * Eigenvectors are aligned on rows: eigenvectors(qpState,eigenIndex)
    */
-  std::tuple<Eigen::VectorXd, ParallelMatrix<double>> diagonalize();
+  std::tuple<Eigen::VectorXd, ParallelMatrix<double>>
+                                diagonalize(int numEigenvalues = 0);
 
   /** Outputs the quantity to a json file.
    * @param outFileName: string representing the name of the json file
@@ -174,6 +188,11 @@ public:
                         const Eigen::VectorXd& energies2,
                         const Eigen::VectorXd& energies3);
 
+  /** Call the underlying PMatrix function to return the iterator of all elements of the
+   * matrix which are local
+   * @return: an iterator of local state index pairs
+   **/
+  std::vector<std::tuple<int, int>> getAllLocalStates();
 
  protected:
   Context &context;
@@ -191,12 +210,22 @@ public:
   // and there are simplified evaluations taking place
   bool constantRTA = false;
   bool highMemory = true;     // whether the matrix is kept in memory
-  bool isMatrixOmega = false; // whether the matrix is Omega or A
+  bool outputUNTimes = false;    // whether to output U and N processes in RTA
+
+  // NOTE: about the definition of A
   // A acts on the canonical population, omega on the population
-  // A acts on f, omega on n, with n = bose(bose+1)f e.g. for phonons
+  // A acts on f, Omega on n, with n = bose(bose+1)f e.g. for phonons
+  //
+  // Generally: A_out = diagonal of the scattering matrix.
+  // In the case of phonons, A_out = linewidth * n(n+1)
+  // In the case of electrons, A_out = linewidht
+  bool isMatrixOmega = false; // whether the matrix is Omega or A
+
 
   // we save the diagonal matrix element in a dedicated vector
   VectorBTE internalDiagonal;
+  std::shared_ptr<VectorBTE> internalDiagonalUmklapp;
+  std::shared_ptr<VectorBTE> internalDiagonalNormal;
   // the scattering matrix, initialized if highMemory==true
   ParallelMatrix<double> theMatrix;
 
@@ -264,6 +293,13 @@ public:
    * linewidths to be averaged.
    */
   void degeneracyAveragingLinewidths(VectorBTE *linewidth);
+
+  /** Internal helper to formats single mode times stored in vectorBTE
+   * object based on if the matrix isOmega or not.
+   * @param VectorBTE& diagonal: the list of times we want to reformat
+   * @return VectorBTE: containing the reformated times
+   */
+  VectorBTE getTimesFromVectorBTE(VectorBTE& diagonal);
 
 };
 

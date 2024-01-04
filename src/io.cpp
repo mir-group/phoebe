@@ -93,8 +93,7 @@ void IO::goodbye(Context &context) {
   std::cout << "\tPhoebe: a high-performance framework for solving \n\tphonon and electron "
                "Boltzmann transport equations.\n"
 	    << "\tA. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.\n"
-      << "\thttps://doi.org/10.1088/2515-7639/ac86f6\n" << std::endl;
-	    //<< "\tarXiv:2111.14999\n" << std::endl;
+      << "\thttps://doi.org/10.1088/2515-7639/ac86f6 (2022).\n" << std::endl;
 
   std::vector<std::string> solvers = context.getSolverBTE();
   // Relaxons solver
@@ -103,6 +102,11 @@ void IO::goodbye(Context &context) {
     std::cout << "\tA. Cepellotti and N. Marzari.\n" <<
     //    "\tThermal transport in crystals as a kinetic theory of relaxons.\n" <<
         "\tPhysical Review X 6, no. 4 (2016): 041013.\n" << std::endl;
+
+    //std::cout << "Generalization of Fourier’s Law into Viscous Heat Equations" << std::endl;
+    std::cout << "\tM. Simoncelli, N. Marzari, and A. Cepellotti.\n" <<
+                 "\tPhysical Review X 10, no. 1 (2020): 011019.\n" << std::endl;
+
   }
   // iterative solver
   if (std::find(solvers.begin(), solvers.end(), "iterative") != solvers.end()) {
@@ -168,7 +172,15 @@ void IO::goodbye(Context &context) {
     // At least, I think it's this one. Subroutine elphel() in QE was
     // written by F. Mauri, but it's unclear when and for what article
   }
-
+  // phonon isotope scattering
+  if(context.getWithIsotopeScattering() && context.getAppName() == "phononTransport") {
+    std::cout << "  For use of phonon-isotope scattering:" << std::endl;
+    std::cout << "\tJ. Garg, N. Bonini, B. Kozinsky, and N. Marzari.\n" <<
+    // Role of Disorder and Anharmonicity in the Thermal Conductivity of
+    // Silicon-Germanium Alloys: A First-Principles Study
+             "\tPhysical Review Letters 106, 045901 (2011)\n" << std::endl;
+  }
+  // scattering matrix/bte symmetries
   if (context.getScatteringMatrixInMemory() && context.getUseSymmetries()) {
     std::cout << "  For the use of symmetries in the scattering matrix:" << std::endl;
     std::cout << "\tL. Chaput.\n" <<

@@ -27,7 +27,7 @@ The balance equation, namely the Boltzmann Transport Equation (BTE), formulated 
 
 with the first term indicating the phonon diffusion due to the temperature gradient and the second term the scattering rate due to all the scattering processes.
 This equation has to be solved self consistently.
-In the general approach, for small perturbation from the equilibrium, the temperature gradient of the perturbed phonon population is replaced with the temperature gradient of the equilibrium phonon population :math:`\partial n_{\boldsymbol{q} j} / \partial T = \partial \bar{n}_{\boldsymbol{q} j} / \partial T ` where `\bar{n}_{\boldsymbol{q} j} = (e^{\hbar \omega_{\boldsymbol{q} j} /k_BT} - 1)^{-1}`, while the scattering term can be expanded about its equilibrium value in terms of a first-order perturbation, :math:`f^{\mathrm{EX}}`,
+In the general approach, for small perturbation from the equilibrium, the temperature gradient of the perturbed phonon population is replaced with the temperature gradient of the equilibrium phonon population :math:`\partial n_{\boldsymbol{q} j} / \partial T = \partial \bar{n}_{\boldsymbol{q} j} / \partial T` where :math:`\bar{n}_{\boldsymbol{q} j} = (e^{\hbar \omega_{\boldsymbol{q} j} /k_BT} - 1)^{-1}`, while the scattering term can be expanded about its equilibrium value in terms of a first-order perturbation, :math:`f^{\mathrm{EX}}`,
 
 .. math::
    n_{\boldsymbol{q} j} \simeq \bar{n}_{\boldsymbol{q} j}+\bar{n}_{\boldsymbol{q} j}(\bar{n}_{\boldsymbol{q} j}+1) \frac{\partial T}{\partial \boldsymbol{x}}\cdot f^{\mathrm{EX}}_{\boldsymbol{q} j}
@@ -106,14 +106,14 @@ where :math:`\boldsymbol{G}` are the reciprocal lattice vectors.
 
   <h4>Phonon-isotope scattering</h4>
 
-The rate of the elastic scattering with isotopic impurities has the form [ref]:
+The rate of the elastic scattering with isotopic impurities has the form:
 
 .. math::
    P_{\boldsymbol{q} j,\boldsymbol{q}' j'}^{\mathrm{isot}} = \frac{\pi}{2 N_0} \omega_{\boldsymbol{q} j}\omega_{\boldsymbol{q}' j'}
    \left[ \bar{n}_{\boldsymbol{q} j} \bar{n}_{\boldsymbol{q}' j'} + \frac{\bar{n}_{\boldsymbol{q} j} + \bar{n}_{\boldsymbol{q}' j'}} {2} \right ]
    \sum_{s} g^{s}_{2}   \bigg|  \sum_{\alpha} z^{s \alpha^*}_{\boldsymbol{q}j} \cdot z^{s \alpha}_{\boldsymbol{q}' j'} \bigg|^2 \delta (\omega_{\boldsymbol{q} j}- \omega_{\boldsymbol{q}' j'})
 
-where we introduced the isotopic scattering strength  :math:`g^s_2`:. See https://doi.org/10.1103/PhysRevLett.106.045901 for reference.
+where we introduced the isotopic scattering strength  :math:`g^s_2`:. See https://doi.org/10.1103/PhysRevLett.106.045901 for more details.
 
 .. math::
    g^s_2 = \frac{1}{\langle m_s \rangle^2} \sum_i f_{is} (m_{is} - \langle m_s \rangle)^2

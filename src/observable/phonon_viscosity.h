@@ -6,7 +6,6 @@
 #include "ph_scattering.h"
 
 /** Object to compute and store the phonon viscosity.
- * TODO: test if electron viscosity works with this class as well.
  */
 class PhononViscosity : public Observable {
 public:
@@ -19,14 +18,6 @@ public:
    */
   PhononViscosity(Context &context_, StatisticsSweep &statisticsSweep_,
                   Crystal &crystal_, BaseBandStructure &bandStructure_);
-
-  /** copy constructor
-   */
-  PhononViscosity(const PhononViscosity &that);
-
-  /** copy assignment
-   */
-  PhononViscosity &operator=(const PhononViscosity &that);
 
   /** Compute the viscosity within the relaxation time approximation
    * Stores it internally.
@@ -43,20 +34,58 @@ public:
    */
   void outputToJSON(const std::string& outFileName);
 
-  /** Computes the viscosity from the scattering matrix eigenvectors.
-   * Following Simoncelli PRX 2020. Stores it internally.
-   * @param vector0: VectorBTE object with the energy-conserving eigenvector.
-   * @param relTimes: the VectorBTE object with relaxon relaxation times.
-   * @oaram sMatrix: the scattering matrix.
-   * @oaram eigenvectors: the eigenvectors of the scattering matrix above.
+  /** Outputs the quantities needed for a real space solution
+   *  in hydrodynamic materials.
    */
-  void calcFromRelaxons(Vector0 &vector0, Eigen::VectorXd &eigenvalues,
-                        PhScatteringMatrix &sMatrix,
+  void outputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix);
+
+  /** Computes the viscosity from the scattering matrix eigenvectors.
+   * Following Simoncelli PRX 2020.
+   * @param relTimes: the VectorBTE object with relaxon relaxation times.
+   * @param eigenvectors: the eigenvectors of the scattering matrix above.
+   */
+  void calcFromRelaxons(Eigen::VectorXd &eigenvalues,
                         ParallelMatrix<double> &eigenvectors);
 
+  /** Helper function to print information about the scalar products with the
+   * special eigenvectors.
+   * @param eigenvectors: eigenvectors of the scattering matrix
+   * @param numRelaxons: the number of relaxons which have been calculated
+   */
+  void relaxonEigenvectorsCheck(ParallelMatrix<double>& eigenvectors, int& numRelaxons);
+
+  /** Helper function to pre-calculate the special eigenvectors theta0 + phi,
+   * as well as A, C
+   */
+  void calcSpecialEigenvectors();
+
 protected:
+
   int whichType() override;
-  BaseBandStructure &bandStructure;
+  BaseBandStructure& bandStructure;
+  double spinFactor = 1;
+  int alpha0 = -1; // the index of the energy eigenvector, to skip it
+  int alpha_e = -1; // UNUSED, no charge eigenvector here
+
+  // theta^0 - energy conservation eigenvector
+  //   electronic states = ds * g-1 * (hE - mu) * 1/(kbT^2 * V * Nkq * Ctot)
+  //   phonon states = ds * g-1 * h*omega * 1/(kbT^2 * V * Nkq * Ctot)
+  Eigen::VectorXd theta0;
+
+  // UNUSED: theta^e -- the charge conservation eigenvector
+  //   electronic states = ds * g-1 * 1/(kbT * U)
+  Eigen::VectorXd theta_e;
+
+  // phi -- the three momentum conservation eigenvectors
+  //     phi = sqrt(1/(kbT*volume*Nkq*M)) * g-1 * ds * hbar * wavevector;
+  Eigen::MatrixXd phi;
+
+  // normalization coeff A ("phonon specific momentum")
+  // A = 1/(V*Nq) * (1/kT) sum_qs (hbar*q)^2 * N(1+N)
+  Eigen::Vector3d A;
+
+  double C; // phonon specific heat
+
 };
 
 #endif

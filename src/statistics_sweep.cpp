@@ -17,6 +17,8 @@ StatisticsSweep::StatisticsSweep(Context &context,
                         ? fullBandStructure->getIsDistributed()
                         : false) {
 
+  Kokkos::Profiling::pushRegion("StatisticsSweep constructor");
+
   Eigen::VectorXd temperatures = context.getTemperatures();
   nTemp = int(temperatures.size());
   if (nTemp == 0) {
@@ -207,8 +209,8 @@ StatisticsSweep::StatisticsSweep(Context &context,
     infoCalculations = calcTable;
     numCalculations = int(calcTable.rows());
   }
-
   printInfo();
+  Kokkos::Profiling::popRegion();
 }
 
 // copy constructor
@@ -284,8 +286,13 @@ StatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
   // Corner cases
   // if numElectronsDoped > numBands, it's a non-valid doping
   if (numElectronsDoped > float(numBands)) {
-    Error("The number of occupied states is larger than the "
-          "bands present in the Hamiltonian");
+    Error("The requested number of occupied states is larger than the "
+          "bands present in the Hamiltonian.\n"
+          "numBands: " + std::to_string(numBands) + " numElectrons: " + std::to_string(numElectronsDoped)
+          + "\nThis likely means you've selected a non-physical doping value, such as\n"
+          "a very small doping for a metal, or you didn't Wannierize enough bands."
+          "\nThis can also happen if you had bands under your disentanglement window which\n"
+          "were not excluded using exclude_bands in Wannier90.\nSee a note about this in the elphWannier tutorial.");
   }
   if (numElectronsDoped < 0.) {
     Error("The number of occupied states is negative");
@@ -305,11 +312,16 @@ StatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
     }
   }
 
-  // I choose the following (generous) boundaries
-  double aX = *min_element(energies.begin(), energies.end()) - 1.;
-  double bX = *max_element(energies.begin(), energies.end()) + 1.;
-  // note: +-1 Ry = 13 eV should work for most dopings and temperatures,
-  // even in corner cases
+  double aX = 0; double bX = 0;
+  // if this is a weird case where this processor has zero
+  // states, the below lines will cause a seg fault
+  if(energies.size() > 0) {
+    // I choose the following (generous) boundaries
+    aX = *min_element(energies.begin(), energies.end()) - 1.;
+    bX = *max_element(energies.begin(), energies.end()) + 1.;
+    // note: +-1 Ry = 13 eV should work for most dopings and temperatures,
+    // even in corner cases
+  }
 
   // if energies are distributed, each process needs to have the global
   // minimum and maximum of the energies
@@ -369,6 +381,9 @@ double StatisticsSweep::findDopingFromChemicalPotential(
   if (isDistributed) mpi->allReduceSum(&fPop);
   fPop /= double(numPoints);
   double doping = (occupiedStates - fPop);
+  // here we save doping in 1/cm^3 because doping is never used 
+  // internally for calculations, with the exception of converting sigma->mu at the very end. 
+  // this is only for printing to file later. 
   doping *= spinFactor / volume / pow(distanceBohrToCm, 3);
   return doping;
 }

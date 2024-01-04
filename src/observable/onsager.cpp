@@ -153,6 +153,9 @@ void OnsagerCoefficients::calcFromSymmetricPopulation(VectorBTE &nE, VectorBTE &
 }
 
 void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
+
+  Kokkos::Profiling::pushRegion("calcOnsagerFromPopulation");
+
   double norm = spinFactor / context.getKMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
   LEE.setZero();
@@ -315,11 +318,16 @@ void OnsagerCoefficients::calcTransportCoefficients() {
       }
     }
   }
+  Kokkos::Profiling::popRegion();
 }
 
 void OnsagerCoefficients::calcFromRelaxons(
     Eigen::VectorXd &eigenvalues, ParallelMatrix<double> &eigenvectors,
     ElScatteringMatrix &scatteringMatrix) {
+
+  Kokkos::Profiling::pushRegion("calcFromRelaxons");
+
+  int numEigenvalues = eigenvalues.size();
   int iCalc = 0;
   double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
   double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
@@ -332,20 +340,26 @@ void OnsagerCoefficients::calcFromRelaxons(
 
     VectorBTE fE(statisticsSweep, bandStructure, 3);
     VectorBTE fT(statisticsSweep, bandStructure, 3);
+
     for (auto tup0 : eigenvectors.getAllLocalStates()) {
       int is = std::get<0>(tup0);
-      int alfa = std::get<1>(tup0);
-      if (eigenvalues(alfa) <= 0.) {
+      int alpha = std::get<1>(tup0);
+      // if we only calculated some eigenvalues,
+      // we should not include any alpha
+      // values past that -- the memory in eigenvectors is
+      // still allocated, however, it contains zeros or nonsense.
+      // we also need to discard any negative states (warned about already)
+      if (eigenvalues(alpha) <= 0. || alpha >= numEigenvalues) {
         continue;
       }
       auto isIndex = StateIndex(is);
       double en = bandStructure.getEnergy(isIndex);
       auto vel = bandStructure.getGroupVelocity(isIndex);
       for (int i : {0, 1, 2}) {
-        fE(iCalc, i, alfa) += -particle.getDnde(en, temp, chemPot, true)
-            * vel(i) * eigenvectors(is, alfa) / eigenvalues(alfa);
-        fT(iCalc, i, alfa) += -particle.getDndt(en, temp, chemPot, true)
-            * vel(i) * eigenvectors(is, alfa) / eigenvalues(alfa);
+        fE(iCalc, i, alpha) += -particle.getDnde(en, temp, chemPot, true)
+            * vel(i) * eigenvectors(is, alpha) / eigenvalues(alpha);
+        fT(iCalc, i, alpha) += -particle.getDndt(en, temp, chemPot, true)
+            * vel(i) * eigenvectors(is, alpha) / eigenvalues(alpha);
       }
     }
     mpi->allReduceSum(&fE.data);
@@ -353,17 +367,21 @@ void OnsagerCoefficients::calcFromRelaxons(
 
     for (auto tup0 : eigenvectors.getAllLocalStates()) {
       int is = std::get<0>(tup0);
-      int alfa = std::get<1>(tup0);
+      int alpha = std::get<1>(tup0);
+      // discard negative and non-computed alpha values
+      if (eigenvalues(alpha) <= 0. || alpha >= numEigenvalues) {
+        continue;
+      }
       for (int i : {0, 1, 2}) {
-        nE(iCalc, i, is) += fE(iCalc, i, alfa) * eigenvectors(is, alfa);
-        nT(iCalc, i, is) += fT(iCalc, i, alfa) * eigenvectors(is, alfa);
+        nE(iCalc, i, is) += fE(iCalc, i, alpha) * eigenvectors(is, alpha);
+        nT(iCalc, i, is) += fT(iCalc, i, alpha) * eigenvectors(is, alpha);
       }
     }
     mpi->allReduceSum(&nE.data);
     mpi->allReduceSum(&nT.data);
 
   } else { // with symmetries
-    Error("Not sure relaxons with symmetries would work");
+    Error("Developer error: Theoretically, relaxons with symmetries may not work.");
     Eigen::MatrixXd fE(3, eigenvectors.cols());
     Eigen::MatrixXd fT(3, eigenvectors.cols());
     fE.setZero();
@@ -371,6 +389,10 @@ void OnsagerCoefficients::calcFromRelaxons(
     for (auto tup0 : eigenvectors.getAllLocalStates()) {
       int iMat1 = std::get<0>(tup0);
       int alpha = std::get<1>(tup0);
+      // discard negative and non-computed alpha values
+      if (eigenvalues(alpha) <= 0. || alpha >= numEigenvalues) {
+        continue;
+      }
       auto tup1 = scatteringMatrix.getSMatrixIndex(iMat1);
       BteIndex iBteIndex = std::get<0>(tup1);
       CartIndex dimIndex = std::get<1>(tup1);
@@ -394,10 +416,13 @@ void OnsagerCoefficients::calcFromRelaxons(
     mpi->allReduceSum(&fE);
 
     // back rotate to Bloch electron coordinates
-
     for (auto tup0 : eigenvectors.getAllLocalStates()) {
       int iMat1 = std::get<0>(tup0);
       int alpha = std::get<1>(tup0);
+      // discard negative and non-computed alpha values
+      if (eigenvalues(alpha) <= 0. || alpha >= numEigenvalues) {
+        continue;
+      }
       auto tup1 = scatteringMatrix.getSMatrixIndex(iMat1);
       BteIndex iBteIndex = std::get<0>(tup1);
       CartIndex dimIndex = std::get<1>(tup1);
@@ -409,6 +434,7 @@ void OnsagerCoefficients::calcFromRelaxons(
     mpi->allReduceSum(&nE.data);
     mpi->allReduceSum(&nT.data);
   }
+  Kokkos::Profiling::popRegion();
   calcFromSymmetricPopulation(nE, nT);
 }
 

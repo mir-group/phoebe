@@ -1,4 +1,5 @@
 add_subdirectory(lib/kokkos)
+add_subdirectory(lib/kokkos-kernels)
 
 include(ExternalProject)
 include(FetchContent)
@@ -28,6 +29,7 @@ ExternalProject_Add(spglib_dep
     INSTALL_COMMAND ""
     UPDATE_COMMAND ""
     CMAKE_ARGS
+	-DUSE_OMP=${OMP_AVAIL}
         -DCMAKE_BUILD_TYPE=Release
         -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
 )
@@ -46,7 +48,7 @@ ExternalProject_Add(pugixml_dep
 ExternalProject_Add(eigen_dep
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/eigen_src
     GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-    GIT_TAG 3.4
+    GIT_TAG 3.4.0
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
     INSTALL_COMMAND ""
@@ -79,6 +81,7 @@ if(HDF5_AVAIL)
           -DHIGHFIVE_USE_OPENCV=OFF
           -DHIGHFIVE_USE_XTENSOR=OFF
           -DEIGEN3_INCLUDE_DIRS=${CMAKE_CURRENT_BINARY_DIR}/eigen_src
+          -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}
 )
 endif()
 

@@ -45,6 +45,8 @@ This calculation will create the ground state charge density and wavefunctions t
    It is imperative that this `scf` calculation is only done once at the beginning and is never repeated aftwerwards.
    If you run another `scf` calculation between step 3 and 6, you may alter the gauge of the wavefunction and thus ruin the interpolation of the electron-phonon coupling.
 
+   Additionally, please make sure you do all steps involving QE (3-6) in the same directory with this gauge information -- otherwise, the calculation could be wrong!
+
 To run this calculation, go to the folder ``./example/Silicon_el/qe-elph`` in the Phoebe repository.
 The file ``scf.in`` is the input file for the ``pw.x`` executable.
 The contents of the ``scf.in`` file for a total energy DFT calculation of Quantum ESPRESSO for a silicon crystal is shown below ::
@@ -131,8 +133,7 @@ Also, it's important that ``prefix`` and ``outdir`` are the same as those used i
 Use a good value of ``tr2_ph`` (smaller is better, but harder to converge), which (indirectly) checks the convergence of phonon frequencies.
 
 
-In the input file, we set the flag ``electron_phonon = "epa"``. Even though we are not doing an EPA calculation, this flag still results in the
-This will trigger the calculation of the electron-phonon coupling matrix elements which are used by Phoebe.
+In the input file, we set the flag ``electron_phonon = "epa"``. Even though we are not doing an EPA calculation, this flag is generally used to trigger the calculation of the electron-phonon coupling matrix elements which are used by Phoebe.
 
 Run the code as::
 
@@ -226,6 +227,7 @@ The input file used above to run Wannier90 is a bit more involved::
 	write_tb = true
 	write_u_matrices = true
 
+  !exclude_bands = 0
 	bands_plot        = true
 
 	num_bands         = 12
@@ -281,6 +283,12 @@ The k-point list at the end of the calculation is the same list used in the nscf
      write_u_matrices = true
 
    These will write to file the Hamiltonian in the Wannier representation and the rotation matrices :math:`U` that are needed to run Phoebe.
+
+.. note::
+   If you have core states which are below your disentanglement window, you MUST set exclude bands to remove these from the output Wannierization. If you don't set this, Wannier90 does not provide any information about the number of electrons used in the calculation, and you may see errors from Phoebe about your Hamiltonian not having enough bands, or find that your Fermi level in Phoebe is nonsensical.
+
+   If you forgot to set this parameter, you can probably rectify it during the Phoebe calculation by setting the :ref:`numOccupiedStates` input variable to the number of electrons in your DFT calculation - the bands under the disentanglement window. Then make sure the Fermi level calculated by Phoebe approximately matches the one from your scf output."
+
 
 The variable ``num_bands`` should match the value of ``nbnd`` set in ``scf.in`` and ``nscf.in``.
 
@@ -340,8 +348,10 @@ For this reason, we recommend to limit/avoid use of MPI parallelization and use 
 For some large calculations, the electron-phonon coupling tensor may be very large, so that a single MPI process cannot store an entire copy of the tensor in its own memory.
 If this is the case (e.g. if some segmentation faults appear), you can try setting the input variable :ref:`distributedElPhCoupling` = `"true"`: this will decrease the memory requirements of the calculation in exchange for a slower calculation, and will parallelize with MPI over the irreducible q-points.
 
-After the code completes, you should see an output file called ``silicon.phoebe.elph.dat`` or ``silicon.phoebe.elph.hdf5`` if you compiled Phoebe with HDF5 support.
+After the code completes, you should see an output file called ``silicon.phoebe.elph.dat`` or ``silicon.phoebe.elph.hdf5`` if you compiled Phoebe with HDF5 support (recommended).
 
+
+.. _calculateElTransport:
 
 Step 8: Electronic Transport from Wannier interpolation
 --------------------------------------------------------
@@ -353,7 +363,7 @@ The input file for computing electronic transport properties::
   phFC2FileName = "silicon.fc"
   sumRuleFC2 = "crystal"
   electronH0Name = "si_tb.dat",
-  elphFileName = "silicon.phoebe.elph.dat"
+  elphFileName = "silicon.phoebe.elph.hdf5"
 
   kMesh = [15,15,15]
   temperatures = [300.]
@@ -457,7 +467,8 @@ You can learn more about how to post-process these files at :ref:`postprocessing
 
 * ``solver_el_relaxation_times.json``: contains the relaxation times on the :ref:`kMesh` specified in the ``electronWannierTransport`` input file. It is only output for solvers "rta" and "relaxons", as the lifetime is not well defined for the iterative solvers.
 
-To understand how to parse these files in more detail, take a look at the scripts described by the :ref:`postprocessing` page.
+To understand how to parse these files in more detail, take a look at the scripts described by the :ref:`postprocessing` page. In particular, if you want to plot lifetimes vs. energy, look at ``tau.py``. If you want to plot the transport coefficients vs. doping or temperature, check out ``transport_coefficients.py``.
+
 **Note:** though we output the Wigner correction with the RTA Onsager coefficients, the Wigner correction is additive for the conductivity and mobility. (Though, not additive for the Seebeck coefficient and electronic thermal conductivity). Therefore, for the electrical conductivity, for example, if you want Wigner+iterative electrical conductivity, you should take :math:`\sigma_{Wigner+RTA} - \sigma_{RTA} + \sigma_{Omini}`.
 
 Convergence Checklist

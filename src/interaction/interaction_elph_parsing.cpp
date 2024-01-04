@@ -257,7 +257,7 @@ std::tuple<int, int, int, Eigen::MatrixXd, Eigen::MatrixXd, std::vector<size_t>,
     mpi->bcast(&phBravaisVectors_, mpi->interPoolComm);
     mpi->bcast(&phBravaisVectorsDegeneracies_, mpi->interPoolComm);
   } catch (std::exception &error) {
-    Error("Issue reading elph Wannier representation from hdf5.");
+    Error("Issue reading elph Wannier representation header data from hdf5.");
   }
 
   return std::make_tuple(numElBands, numPhBands, totalNumElBravaisVectors, elBravaisVectors_,
@@ -642,7 +642,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     std::ifstream infile(fileName);
     if (not infile.is_open()) {
       Error("Required electron-phonon file ***.phoebe.elph.hdf5 "
-            "not found at " + fileName + " .");
+            "not found at " + fileName);
     }
   }
 

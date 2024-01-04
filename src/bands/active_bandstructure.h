@@ -158,6 +158,13 @@ public:
    */
   Eigen::VectorXd getEnergies(WavevectorIndex &ik) override;
 
+  /** Returns the maximum energy value. This can be useful when
+   * setting energy scales based on which phonons are discarded
+   * (as in the phel scattering, where the window is set relative
+   * to the maximum phonon energies)
+  */
+  double getMaxEnergy();
+
   /** Returns the group velocity of a quasiparticle from its Bloch index.
    * Used for accessing the band structure in the BTE.
    * @param stateIndex: a StateIndex(is) object where 'is' is an integer index

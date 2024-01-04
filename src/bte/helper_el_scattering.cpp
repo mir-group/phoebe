@@ -20,6 +20,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
   // 3 - the mesh is complete (if q1 and q2 are only around 0, q3 might be
   //     at the border)
 
+  Kokkos::Profiling::pushRegion("HelperElScattering");
 
   auto t1 = outerBandStructure.getPoints().getMesh();
 //  auto mesh = std::get<0>(t1);
@@ -216,6 +217,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
       mappedPolarData.insert({alliq3s[iiq3], allPolarData.col(iiq3)});
     }
   }
+  Kokkos::Profiling::popRegion();
 }
 
 // auto [eigenValues3Minus, nb3Minus, eigenVectors3Minus, v3Minus, bose3]

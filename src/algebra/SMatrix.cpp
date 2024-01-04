@@ -89,6 +89,16 @@ std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diag
   return std::make_tuple(eigenvalues, eigenvectors);
 }
 
+template <>
+std::tuple<std::vector<double>, SerialMatrix<double>>
+                        SerialMatrix<double>::diagonalize([[maybe_unused]] int numEigenvalues,
+                                [[maybe_unused]] bool checkNegativeEigenvalues) {
+
+    Warning("Partial eigenvalue diagonalization currently not implemented "
+                "for the serial case. Reporting all eigenvalues.");
+    return diagonalize();
+}
+
 // Explicit specialization of norm for doubles
 template <>
 double SerialMatrix<double>::norm() {
@@ -108,3 +118,22 @@ double SerialMatrix<std::complex<double>>::norm() {
   std::vector<double> work(numRows_);
   return zlange_(&norm, &nr, &nc, this->mat, &nr, &work[0]);
 }
+
+// executes A + AT/2
+template <>
+void SerialMatrix<double>::symmetrize() {
+
+  if (numRows_ != numCols_) {
+    Error("Cannot currently symmetrize a non-square matrix.");
+  }
+
+  for (int i = 0; i<numRows_; i++) {
+    for (int j = i; j<numCols_; j++) {
+
+      double temp = (this->operator()(j,i) + this->operator()(i,j))/2.;
+      this->operator()(i,j) = temp;
+      this->operator()(j,i) = temp;
+    }
+  }
+}
+

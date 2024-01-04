@@ -17,6 +17,7 @@
 #include <highfive/H5Easy.hpp>
 #endif
 
+// look up the index of an R vector in the cell positions list
 int findRIndex(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
   int ir2 = -1;
   for (int i = 0; i < cellPositions2.cols(); i++) {
@@ -26,12 +27,14 @@ int findRIndex(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
     }
   }
   if (ir2 == -1) {
-    Error("index not found");
+    Error("Developer error: force constant R vector index not found in R vector list.");
   }
   return ir2;
 }
 
 std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
+
+  Kokkos::Profiling::pushRegion("parsePhHarmonic");
 
   // Here read the real space dynamical matrix of inter-atomic force constants
   if (mpi->mpiHead()) {
@@ -65,7 +68,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
 
   // read in the dimension information.
   // we have to do this first, because we need to use this info
-  // to allocate the below data storage, and decide how we should look
+  // tllPositions2 the below data storage, and decide how we should look
   // for supercell information.
   // --------------------------------------------------------
   Eigen::Vector3i qCoarseGrid = {0,0,0};
@@ -129,14 +132,15 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   std::vector<std::string> speciesNames;
   PeriodicTable pt;
   bool foundUnitCell = false;
+  // check that prim cell is the same and if not throw a warning
+  bool foundPrimCell = false;
+  Eigen::Matrix3d primUnitCell;
 
   int ilatt = 3;
-  // Note: watch out, this is reading the primitive cell from phono3py.
-  // we might want to read in the unit cell, which could be different
-  // because of some conversions they do internally.
-  // So far all cases I've seen list them as the same cell.
-  // Unit cell is also written to this fine in the same way as read
-  // below.
+  // Note: watch out, this is reading the unit cell from phono3py.
+  // This could be different than the primitive cell, which can cause
+  // issues in phono3py because of some conversions they do internally.
+  // I throw a warning if I find prim and unit are not the same.
   while (infile) {
     getline(infile, line);
     // distance unit changes based on dft solver used
@@ -147,22 +151,21 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     }
 
     if(foundUnitCell) {
-      // if this line has a species, save it
-      if (line.find(" symbol: ") != std::string::npos) {
-        std::string temp =
-            line.substr(line.find("symbol: ") + 8, line.find('#') - 13);
-        // remove any trailing whitespaces
-        temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace),
-                   temp.end());
-        if (std::find(speciesNames.begin(), speciesNames.end(), temp) ==
-            speciesNames.end()) {
-          speciesNames.push_back(temp);
-
-        }
-        // save the atom number of this species
-        atomicSpeciesVec.push_back(
-            std::find(speciesNames.begin(), speciesNames.end(), temp) -
-            speciesNames.begin());
+     // if this line has a species, save it
+     if (line.find(" symbol: ") != std::string::npos) {
+       std::string temp =
+           line.substr(line.find("symbol: ") + 8, line.find('#') - 13);
+      // remove any trailing whitespaces
+      temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace),
+                 temp.end());
+      if (std::find(speciesNames.begin(), speciesNames.end(), temp) ==
+          speciesNames.end()) {
+        speciesNames.push_back(temp);
+      }
+      // save the atom number of this species
+      atomicSpeciesVec.push_back(
+          std::find(speciesNames.begin(), speciesNames.end(), temp) -
+          speciesNames.begin());
       }
       // if this is a cell position, save it
       if (line.find("coordinates: ") != std::string::npos) {
@@ -174,7 +177,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
         atomicPositionsVec.push_back(position);
       }
       // parse lattice vectors
-      if (ilatt < 3) {                         // count down lattice lines
+      if (ilatt < 3) { // count down lattice lines
         std::vector<std::string> tok = tokenize(line);
         directUnitCell(ilatt, 0) = std::stod(tok[2]);
         directUnitCell(ilatt, 1) = std::stod(tok[3]);
@@ -184,14 +187,43 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
       if (line.find("lattice:") != std::string::npos) {
         ilatt = 0;
       }
-      // this signals we are done reading primitive cell info
-      if (line.empty() ) {
+      // this signals we are done reading cell info
+      if (line.empty()) {
         break;
       }
     }
-    if (line.find("unit_cell:") != std::string::npos) {
-      foundUnitCell = true; // need to read unit cell, as this is the one really used by phonopy
+    if(foundPrimCell) {
+
+      if (ilatt < 3) { // count down lattice lines
+        std::vector<std::string> tok = tokenize(line);
+        primUnitCell(ilatt, 0) = std::stod(tok[2]);
+        primUnitCell(ilatt, 1) = std::stod(tok[3]);
+        primUnitCell(ilatt, 2) = std::stod(tok[4]);
+        ilatt++;
+        // done prim cell read in
+        if(ilatt == 3) foundPrimCell = false;
+      }
+      if (line.find("lattice:") != std::string::npos &&
+                         line.find("recip") == std::string::npos) {
+        ilatt = 0;
+      }
     }
+    if (line.find("unit_cell:") != std::string::npos) {
+      foundUnitCell = true;
+    }
+    if (line.find("primitive_cell:") != std::string::npos) {
+      foundPrimCell = true;
+    }
+  }
+
+  // check that unit and prim cell match, otherwise throw a warning
+  if(directUnitCell != primUnitCell) {
+    Warning("Your unit cell does not match phonopy's primitive cell.\n"
+        "This can cause errors in Phoebe, as it complicates phonopy's output.\n"
+        "To ensure there are not errors, we recommend you go to the documentation and\n"
+        "follow the instruction to transform your unit cell to phonopy's prim cell.\n"
+        "https://phoebe.readthedocs.io/en/develop/tutorials/phononTransport.html#step-2-calculation-of-force-constants\n"
+        "We recommend against using --pa in phonopy."); // TODO should be error?
   }
 
   // read the rest of the file to get FC2 superCell positions
@@ -409,6 +441,12 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     difc2.read(ifc2);
     dCellMap.read(cellMap);
 
+    // check that cell map matches number of atoms
+    if(int(cellMap.size()) != numAtoms) {
+      Error("Developer error: p2s_map from phono3py does not match numAtoms."
+                "\nyaml file and HDF5 file are somehow mismatched.");
+    }
+
     // unfortunately it appears this is not in some fc files...
     // default to ev/Ang^2
     try {
@@ -527,6 +565,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
                            forceConstants, context.getSumRuleFC2());
 
+  Kokkos::Profiling::popRegion();
   return std::make_tuple(crystal, dynamicalMatrix);
 #endif
 }

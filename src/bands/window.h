@@ -63,6 +63,11 @@ class Window {
    */
   static const int energy = 2;
 
+  /** the window type is provided by the user as an energy range,
+   * where the values are a +/- range around mu
+   */
+  static const int muEnergy = 3;
+
   /** Returns the kind of energy filter used.
    * @return method: an integer equal to either Window::nothing,
    * Window::population, or Window::energy.

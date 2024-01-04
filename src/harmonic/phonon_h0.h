@@ -104,7 +104,7 @@ class PhononH0 : public HarmonicHamiltonian {
   StridedComplexView3D kokkosBatchedBuildBlochHamiltonian(
       const DoubleView2D &cartesianCoordinates) override;
   std::tuple<DoubleView2D, StridedComplexView3D> kokkosBatchedDiagonalizeFromCoordinates(
-      const DoubleView2D &cartesianCoordinates, const bool withMassScaling = true);
+      const DoubleView2D &cartesianCoordinates, const bool withMassScaling = true) override;
   std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
   kokkosBatchedDiagonalizeWithVelocities(
       const DoubleView2D &cartesianCoordinates) override;
@@ -214,7 +214,9 @@ protected:
    */
   static double wsWeight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws);
 
-  // These functions treat hte long range corrections
+  /** Adds the long range correction to the dynamical matrix due to dipole-ion
+   * interaction.
+   */
   void addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                         const Eigen::VectorXd &q);
 
@@ -230,7 +232,8 @@ protected:
   std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> dynDiagonalize(
       Eigen::Tensor<std::complex<double>, 4> &dyn);
 
-  // methods for sum rule on Born charges
+  /** Auxiliary methods for sum rule on Born charges
+   */
   void sp_zeu(Eigen::Tensor<double, 3> &zeu_u, Eigen::Tensor<double, 3> &zeu_v,
               double &scalar) const;
 
@@ -243,3 +246,4 @@ protected:
 };
 
 #endif
+

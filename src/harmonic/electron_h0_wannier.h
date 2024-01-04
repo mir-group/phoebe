@@ -101,7 +101,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * each wavevector.
    */
   std::tuple<DoubleView2D, StridedComplexView3D> kokkosBatchedDiagonalizeFromCoordinates(
-      const DoubleView2D &cartesianCoordinates, const bool withMassScaling=true);
+      const DoubleView2D &cartesianCoordinates, const bool withMassScaling=true) override;
   /** Using kokkos, computes the electronic properties of a batch of wavevectors
    *
    * @param cartesianCoordinates: a ComplexView2D object of size (nk,3)
@@ -112,7 +112,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    */
   std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
   kokkosBatchedDiagonalizeWithVelocities(
-      const DoubleView2D &cartesianCoordinates);
+      const DoubleView2D &cartesianCoordinates) override;
 
   /** get the electron velocities (in atomic units) at a single k-point.
    * @param k: a Point object with the wavevector coordinates.
@@ -147,12 +147,33 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   FullBandStructure populate(Points &fullPoints, const bool &withVelocities,
                              const bool &withEigenvectors,
                              const bool isDistributed=false) override;
+
+  /** Runs populate on a points list, without creating a new bandstructure object
+   * this is necessary if we need energies for some non-uniform grid of points
+   * currently this only used by the phonon electron scattering calculation
+   * @param cartesianCoordinates: the vector with the list of wavevectors in cartesianCoords
+   * @param withVelocities: if true, compute the electron velocity operator.
+   * @param withEigenvectors: if true, stores the Wannier eigenvectors.
+   * @return std::tuple: A tuple of std::vectors of eigen objs containing energies, velocities,
+   * and eigenvectors of the electronic band structure on the provided points
+   */
+  std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
+           std::vector<Eigen::Tensor<std::complex<double>,3>>>
+                    populate(const std::vector<Eigen::Vector3d>& cartesianCoordinates,
+                             const bool &withVelocities,
+                             const bool &withEigenvectors);
+
+  /** Internal helper function for cpu diag of electron H0 */
   FullBandStructure cpuPopulate(Points &fullPoints, const bool &withVelocities,
                                 const bool &withEigenvectors,
                                 const bool isDistributed=false);
-  FullBandStructure kokkosPopulate(Points &fullPoints, const bool &withVelocities,
-                                   const bool &withEigenvectors,
-                                   const bool isDistributed=false);
+
+  /** Internal helper function for kokkos diag of electron H0 */
+  std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
+        std::vector<Eigen::Tensor<std::complex<double>,3>>>
+                    kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianCoordinates,
+                                   const bool &withVelocities,
+                                   const bool &withEigenvectors, const std::vector<int>& iks);
 
   /** compute the Berry connection <u_mk| nabla_k |u_nk> at arb. wavevectors.
    * @param point: the Point coordinates of the wavevector.

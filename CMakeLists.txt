@@ -3,15 +3,10 @@ if(NOT CMAKE_BUILD_TYPE)
       STRING "Choose the type of build." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
-if(Kokkos_ENABLE_CUDA)
-    set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "don't touch")
-    set(CMAKE_CXX_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/lib/kokkos/bin/nvcc_wrapper)
-endif()
-
 # set cmake version
 cmake_minimum_required(VERSION 3.16)
 # set cpp standard flags
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 project(Phoebe LANGUAGES C CXX Fortran VERSION 1.0)
@@ -35,12 +30,17 @@ option(OMP_AVAIL "Build with OMP" ON)
 option(HDF5_AVAIL "Build with HDF5" ON)
 option(HDF5_SERIAL "Force build to accomodate serial only HDF5, but still use MPI" OFF)
 option(BUILD_DOC "Build documentation" ON)
+
+############## KOKKOS #################
 if(OMP_AVAIL)
   option(Kokkos_ENABLE_OPENMP "Use kokkos with omp" ON)
 else()
   option(Kokkos_ENABLE_OPENMP "Use kokkos with omp" OFF)
   option(Kokkos_ENABLE_SERIAL "Use kokkos in serial" ON)
 endif()
+set(KokkosKernels_ADD_DEFAULT_ETI OFF CACHE BOOL "faster build")
+set(KokkosKernels_ENABLED_COMPONENTS BLAS CACHE STRING "faster build")
+
 ############### SOURCE ###############
 
 FILE(GLOB_RECURSE SOURCE_FILES src src/*.cpp)
@@ -64,9 +64,9 @@ set_target_properties(runTests PROPERTIES EXCLUDE_FROM_ALL TRUE)
 add_dependencies(phoebe spglib_dep pugixml_dep eigen_dep)
 add_dependencies(runTests spglib_dep pugixml_dep eigen_dep)
 
-target_link_libraries(phoebe symspg pugixml kokkos nlohmann_json::nlohmann_json)
+target_link_libraries(phoebe symspg pugixml kokkos Kokkos::kokkoskernels nlohmann_json::nlohmann_json)
 enable_testing()
-target_link_libraries(runTests symspg pugixml gtest_main kokkos nlohmann_json::nlohmann_json)
+target_link_libraries(runTests symspg pugixml gtest_main kokkos Kokkos::kokkoskernels nlohmann_json::nlohmann_json)
 
 gtest_discover_tests(
     runTests
@@ -74,7 +74,7 @@ gtest_discover_tests(
 )
 
 if(Kokkos_ENABLE_CUDA)
-    find_package(CUDAToolkit REQUIRED)
+    find_package(CUDAToolkit REQUIRED COMPONENTS cusolver)
     target_link_libraries(phoebe CUDA::cusolver)
     target_link_libraries(runTests CUDA::cusolver)
 endif()
@@ -100,6 +100,7 @@ if (MPI_AVAIL)
               -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
               -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
               -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
+              -DCMAKE_C_FLAGS="-Wno-error=implicit-function-declaration"
           )
       set(SCALAPACK_LIB scalapack)
       message(WARNING "No SCALAPACK library found in CMAKE_LIBRARY_PATH, building our own.")
@@ -127,8 +128,8 @@ if (MPI_AVAIL)
   include_directories(${BLAS_INCLUDE_DIR})
   include_directories(${LAPACK_INCLUDE_DIR})
   ## Very important to link scalapack before blas and lapack
-  target_link_libraries(phoebe ${SCALAPACK_LIB} ${BLACS_LIB} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
-  target_link_libraries(runTests ${SCALAPACK_LIB} ${BLACS_LIB} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
+  target_link_libraries(phoebe ${SCALAPACK_LIB} ${BLACS_LIB} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} )
+  target_link_libraries(runTests ${SCALAPACK_LIB} ${BLACS_LIB} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} )
 
 else()
   set(HDF5_SERIAL ON)
@@ -138,8 +139,8 @@ else()
   find_package(LAPACK REQUIRED)
   include_directories(${BLAS_INCLUDE_DIR})
   include_directories(${LAPACK_INCLUDE_DIR})
-  target_link_libraries(phoebe ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
-  target_link_libraries(runTests ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
+  target_link_libraries(phoebe ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} )
+  target_link_libraries(runTests ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
 
 endif()
 

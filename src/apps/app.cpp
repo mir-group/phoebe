@@ -9,6 +9,7 @@
 #include "lifetimes_app.h"
 #include "phonon_transport_app.h"
 #include "transport_epa_app.h"
+#include "ph_el_lifetimes.h"
 #include <cmath>
 #include <string>
 
@@ -26,7 +27,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
                                             "elPhCouplingPlot",
                                             "electronLifetimes",
                                             "phononLifetimes",
-                                            "transportEpa"};
+                                            "transportEpa",
+                                            "phononElectronLifetimes"};
 
   // check if the app choice is valid, otherwise we stop.
   if (std::find(choices.begin(), choices.end(), choice) == choices.end()) {
@@ -59,6 +61,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
     return std::unique_ptr<App>(new ElectronLifetimesApp);
   } else if (choice == "phononLifetimes") {
     return std::unique_ptr<App>(new PhononLifetimesApp);
+  } else if (choice == "phononElectronLifetimes") {
+    return std::unique_ptr<App>(new PhElLifetimesApp);
   } else {
     return std::unique_ptr<App>(nullptr);
   }
@@ -100,8 +104,9 @@ void App::throwErrorIfUnset(const Eigen::VectorXi &x, const std::string &name) {
 }
 
 void App::throwErrorIfUnset(const Eigen::Vector3i &x, const std::string &name) {
-  if (x.size() == 0) {
-    Error("Input variable " + name + " hasn't been found in input");
+  if (x(0)*x(1)*x(2) == 0) { // size of Vector3i is always three, check if it's zero
+    Error("Input variable " + name + " hasn't been found in input or \n"
+        "has a zero dimension.");
   }
 }
 

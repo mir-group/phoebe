@@ -210,7 +210,7 @@ void PhononDosApp::checkRequirements(Context &context) {
 
 void ElectronWannierDosApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
-  throwErrorIfUnset(context.getQMesh(), "kMesh");
+  throwErrorIfUnset(context.getKMesh(), "kMesh");
   throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
   throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
   throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
@@ -222,7 +222,7 @@ void ElectronWannierDosApp::checkRequirements(Context &context) {
 
 void ElectronFourierDosApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
-  throwErrorIfUnset(context.getQMesh(), "kMesh");
+  throwErrorIfUnset(context.getKMesh(), "kMesh");
   throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
   throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
   throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
