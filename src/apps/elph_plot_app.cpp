@@ -117,6 +117,28 @@ void ElPhCouplingPlotApp::run(Context &context) {
     g2PlotPhBands.second = phononH0.getNumBands() - 1; // minus 1 to account for index from 0 
   } 
 
+  // check lower bounds 
+  if(g2PlotPhBands.first < 0 || g2PlotEl1Bands.first < 0 || g2PlotEl2Bands.first < 0) { 
+    Warning("One of your band range has an index below zero. Setting band range to index from first band.");
+  }
+
+  // check that the first index is minimum of zero 
+  if(g2PlotEl1Bands.first < 0)  { g2PlotEl1Bands.first = 0; }
+  if(g2PlotEl2Bands.first < 0) { g2PlotEl2Bands.first = 0; }
+  if(g2PlotPhBands.first < 0)  { g2PlotPhBands.first = 0;  }
+
+  // check if lower band is less than higher band 
+  if(g2PlotPhBands.first > g2PlotPhBands.second || g2PlotEl1Bands.first > g2PlotEl1Bands.second 
+		  				|| g2PlotEl2Bands.first > g2PlotEl2Bands.second ) {
+    Error("One of your band range index2 - index1 < 0. Check the band ranges."); 
+  }
+
+  if(mpi->mpiHead()) { 
+	  std::cout << "Coupling to be calculated with (inclusive) band ranges: el1 [" << g2PlotEl1Bands.first << " "
+	 	<< g2PlotEl1Bands.second << "] el2 [" << g2PlotEl2Bands.first << " " <<  g2PlotEl2Bands.second 
+	        << "] ph [" <<  g2PlotPhBands.first << " " <<  g2PlotPhBands.second << "]" << std::endl; 
+  }   
+
   // Compute the coupling --------------------------------------------------
   std::vector<double> allGs;
 
