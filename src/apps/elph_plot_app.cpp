@@ -144,9 +144,23 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
   // distribute over k,q pairs
   int numPairs = pointsPairs.size();
-  auto pairParallelIter = mpi->divideWorkIter(numPairs);
+  std::vector<size_t> pairParallelIter = mpi->divideWorkIter(numPairs);
 
-  // we calculate the coupling for each pair, flatten it, and append
+  // If mpi pools are used and each process does not have the same 
+  // amount of work, the code can hang waiting for couplingElph to return.
+  // In the worse case, some processes will have one less item. 
+  // We check if this process's work value is less than the max value across 
+  // processes, and if so, append a -1 index. 
+  size_t max = pairParallelIter.size(); 
+  mpi->allReduceMax(&max); 
+  if(pairParallelIter.size() < max) {
+    Eigen::Vector3d kCartesian = Eigen::Vector3d::Zero();
+    int numWannier = couplingElPh.getCouplingDimensions()(4);
+    Eigen::MatrixXcd eigenVectorK = Eigen::MatrixXcd::Zero(numWannier, 1);
+    couplingElPh.cacheElPh(eigenVectorK, kCartesian);
+  } 
+
+  // we calculate the coupling for each pair, flatten it, and append  --------------
   // it to allGs. Then at the end, we write this chunk to HDF5.
 
   if(mpi->mpiHead())
