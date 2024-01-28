@@ -7,10 +7,10 @@
 
 // here alpha0 and alpha e are set through passing by reference
 void genericRelaxonEigenvectorsCheck(ParallelMatrix<double>& eigenvectors,
-                                int& numRelaxons, Particle& particle,
-                                Eigen::VectorXd& theta0,
-                                Eigen::VectorXd& theta_e,
-                                int& alpha0, int& alpha_e) {
+                                    int& numRelaxons, Particle& particle,
+                                    Eigen::VectorXd& theta0,
+                                    Eigen::VectorXd& theta_e,
+                                    int& alpha0, int& alpha_e) {
 
   // calculate the overlaps with special eigenvectors
   Eigen::VectorXd prodTheta0(numRelaxons); prodTheta0.setZero();
@@ -59,12 +59,12 @@ void genericRelaxonEigenvectorsCheck(ParallelMatrix<double>& eigenvectors,
 
 // calculate special eigenvectors
 void genericCalcSpecialEigenvectors(BaseBandStructure& bandStructure,
-                              StatisticsSweep& statisticsSweep,
-                              double& spinFactor,
-                              Eigen::VectorXd& theta0,
-                              Eigen::VectorXd& theta_e,
-                              Eigen::MatrixXd& phi,
-                              double& C, Eigen::Vector3d& A) {
+                                    StatisticsSweep& statisticsSweep,
+                                    double& spinFactor,
+                                    Eigen::VectorXd& theta0,
+                                    Eigen::VectorXd& theta_e,
+                                    Eigen::MatrixXd& phi,
+                                    double& C, Eigen::Vector3d& A) {
 
   int dimensionality = bandStructure.getPoints().getCrystal().getDimensionality();
   double volume = bandStructure.getPoints().getCrystal().getVolumeUnitCell(dimensionality);
@@ -198,6 +198,7 @@ void printViscosity(std::string& viscosityName, Eigen::Tensor<double, 5>& viscos
 
   if (!mpi->mpiHead()) return;
 
+  // TODO Very important, do we have to multiply this by height / thickness? 
   std::string units;
   if (dimensionality == 1)      { units = "Pa s / m^2"; } // 3d
   else if (dimensionality == 2) { units = "Pa s / m";   } // 2d

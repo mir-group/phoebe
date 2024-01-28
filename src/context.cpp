@@ -1018,7 +1018,7 @@ void Context::printInputSummary(const std::string &fileName) {
                   << maxChemicalPotential * energyRyToEv << " eV" << std::endl;
       if (!std::isnan(deltaChemicalPotential))
         std::cout << "deltaChemicalPotential = "
-                  << deltaChemicalPotential * energyRyToEv << " eV" << std::endl;git
+                  << deltaChemicalPotential * energyRyToEv << " eV" << std::endl;
       if (!std::isnan(eFermiRange))
         std::cout << "eFermiRange = " << eFermiRange << " eV" << std::endl;
       if (!std::isnan(fermiLevel))
