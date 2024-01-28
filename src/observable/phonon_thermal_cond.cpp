@@ -21,9 +21,11 @@ PhononThermalConductivity::PhononThermalConductivity(
   if (dimensionality == 1) {
     thCondConversion = thConductivityAuToSi; 
   } else if (dimensionality == 2) {
-    // multiply by the height of the cell / thickness of the cell for 2D
-    double height = crystal.getDirectUnitCell()(2,2);
-    thCondConversion = thConductivityAuToSi * (height / context.getThickness()); 
+    // multiply by the height of the cell / thickness of the cell to convert 3D -> 2D.  
+    // Because the unit cell volume is already reduced for dimensionality, 
+    // we only need to divide by thickness. 
+    //double height = crystal.getDirectUnitCell()(2,2);
+    thCondConversion = thConductivityAuToSi * (1. / context.getThickness()); 
   } else {
     Warning("1D conductivity should be manually adjusted for the cross-section of the material.");
     thCondConversion = thConductivityAuToSi; 
