@@ -97,6 +97,10 @@ public:
 protected:
   int whichType() override;
   BaseBandStructure &bandStructure;
+  // unit information for writing to files
+  std::string thCondUnits; 
+  double thCondConversion; 
+
 };
 
 #endif
