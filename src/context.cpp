@@ -83,6 +83,12 @@ double parseDoubleWithUnits(std::string &line) {
   if (patternInString(line, "mum")) {
     x /= distanceBohrToMum;
   }
+  if (patternInString(line, "ang")) {
+    x /= distanceBohrToAng;
+  }
+  if (patternInString(line, "Bohr") || patternInString(line, "bohr")) {
+    x /= 1.; // it's already in atomic units
+  }
 
   return x;
 }
@@ -132,7 +138,6 @@ std::tuple<int,double> parseDoubleVectorComponent(std::string line) {
   double val = std::stod(part2);
   return std::make_tuple(idx,val);
 }
-
 
 /** Parse a string of format "key = value units" to return an integer value.
  */
@@ -562,6 +567,10 @@ void Context::setupFromInput(const std::string &fileName) {
         dimensionality = parseInt(val);
       }
 
+      if (parameterName == "thickness") {
+        thickness = parseDoubleWithUnits(val);
+      }
+
       if (parameterName == "dosMinEnergy") {
         dosMinEnergy = parseDoubleWithUnits(val);
       }
@@ -806,6 +815,31 @@ void Context::setupFromInput(const std::string &fileName) {
     lineCounter += 1;
   }
 }
+
+void Context::inputSanityCheck() {
+
+  // disallow symmetries when relaxons are used
+  for (const std::string &s : solverBTE) {
+    if (s.compare("variational") == 0 || s.compare("relaxons") == 0) {
+      if(useSymmetries) { 
+        Error("Variational and relaxons solvers cannot be used with symmetries!");
+      }
+    }
+  }
+
+  // warn the user if thickness is not set but 2d is 
+  if(dimensionality == 2) { 
+    if(thickness == 1.) { 
+      Warning("You have set dimensionality = 2 but not the thickness input parameter.\n"
+            "This means your final result will have (height of cell / 1.) applied, when it should be\n"
+            "height of cell / thickness!");
+    }
+  }
+
+}
+
+
+
 // helper functions for printInputSummary
 template <typename T>
 void printVector(const std::string& varName, std::vector<T> vec) {
@@ -836,6 +870,7 @@ void Context::printInputSummary(const std::string &fileName) {
   // crystal structure parameters -------------------
   std::cout << "useSymmetries = " << useSymmetries << std::endl;
   std::cout << "dimensionality = " << dimensionality << std::endl;
+  if(dimensionality != 3) std::cout << "thickness = " << thickness * distanceBohrToAng << " ang" << std::endl;
   std::cout << std::endl;
 
   // phonon parameters -------------------------------
@@ -974,8 +1009,7 @@ void Context::printInputSummary(const std::string &fileName) {
       if (dopings.size() != 0)
         printVectorXd("dopings", dopings, "cm^-3");
       if (chemicalPotentials.size() != 0)
-        printVectorXd("chemicalPotentials", chemicalPotentials * energyRyToEv,
-                      "eV");
+        printVectorXd("chemicalPotentials", chemicalPotentials * energyRyToEv, "eV");
       if (!std::isnan(minChemicalPotential))
         std::cout << "minChemicalPotential = "
                   << minChemicalPotential * energyRyToEv << " eV" << std::endl;
@@ -984,17 +1018,18 @@ void Context::printInputSummary(const std::string &fileName) {
                   << maxChemicalPotential * energyRyToEv << " eV" << std::endl;
       if (!std::isnan(deltaChemicalPotential))
         std::cout << "deltaChemicalPotential = "
-                  << deltaChemicalPotential * energyRyToEv << " eV" << std::endl;
+                  << deltaChemicalPotential * energyRyToEv << " eV" << std::endl;git
       if (!std::isnan(eFermiRange))
         std::cout << "eFermiRange = " << eFermiRange << " eV" << std::endl;
       if (!std::isnan(fermiLevel))
         std::cout << "fermiLevel = " << fermiLevel * energyRyToEv << std::endl;
-      if (!std::isnan(numOccupiedStates))
+      if (!std::isnan(numOccupiedStates)) {
         if(!hasSpinOrbit) { // need to account for spin factor
           std::cout << "numOccupiedStates = " << numOccupiedStates/2.0 << std::endl;
         } else {
           std::cout << "numOccupiedStates = " << numOccupiedStates << std::endl;
         }
+      }
     }
     // should not be printed when phellifetimes app is run
     if (appName.find("honon") != std::string::npos && appName.find("lectron") == std::string::npos) {
@@ -1112,6 +1147,9 @@ void Context::printInputSummary(const std::string &fileName) {
       std::cout << "numOccupiedStates = " << numOccupiedStates << std::endl;
     std::cout << "---------------------------------------------\n" << std::endl;
   }
+
+  inputSanityCheck(); // call the input sanity check to make sure these make sense
+
 }
 
 std::string Context::getPhFC2FileName() { return phFC2FileName; }
@@ -1201,6 +1239,8 @@ double Context::getConvergenceThresholdBTE() const {
 int Context::getMaxIterationsBTE() const { return maxIterationsBTE; }
 
 int Context::getDimensionality() const { return dimensionality; }
+
+double Context::getThickness() const { return thickness; }
 
 double Context::getDosMinEnergy() const { return dosMinEnergy; }
 
