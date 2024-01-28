@@ -135,6 +135,8 @@ Phonon BTE Solver
 
 * :ref:`dimensionality`
 
+* :ref:`thickness`
+
 * :ref:`constantRelaxationTime`
 
 * :ref:`withIsotopeScattering`
@@ -222,6 +224,8 @@ Electron BTE Solver
 
 * :ref:`dimensionality`
 
+* :ref:`thickness`
+
 * :ref:`constantRelaxationTime`
 
 * :ref:`convergenceThresholdBTE`
@@ -294,6 +298,10 @@ EPA Transport
 * :ref:`epaEnergyStep`
 
 * :ref:`epaEnergyRange`
+
+* :ref:`dimensionality`
+
+* :ref:`thickness`
 
 * :ref:`kMesh`
 
@@ -482,7 +490,7 @@ Electron Lifetimes on a Path
 
 -----------------------------------
 
-Phonon Dos
+Phonon DoS
 ----------
 
 **Functionality:** Compute the phonon density of states.
@@ -1114,13 +1122,27 @@ convergenceThresholdBTE
 dimensionality
 ^^^^^^^^^^^^^^
 
-* **Description:** Input the dimensionality of the material. As a result, transport coefficients tensors will be of size (dim x dim), and units will be suitably scaled for the desired dimensionality.
+* **Description:** Input the dimensionality of the material. As a result, transport coefficient tensors will be of size (dim x dim), and units will be suitably scaled for the desired dimensionality. For 2D materials, note that Phoebe assumes the material is oriented in x-y, with height in z. 
 
 * **Format:** *int*
 
 * **Required:** no
 
 * **Default:** `3`
+
+
+.. _thickness:
+
+thickness
+^^^^^^^^^^^^^^
+
+* **Description:** Input the thickness of a 2D material. This is only used if :ref:`dimensionality` = 2, and results in a scaling factor of (cell height/thickness) applied to the transport results. 
+
+* **Format:** *double*
+
+* **Required:** no
+
+* **Default:** `1.`
 
 
 .. _constantRelaxationTime:
