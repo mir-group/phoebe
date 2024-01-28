@@ -825,6 +825,13 @@ void Context::inputSanityCheck() {
         Error("Variational and relaxons solvers cannot be used with symmetries!");
       }
     }
+    
+    // Warn users about relaxons with even meshes
+    if (s.compare("relaxons") == 0) {
+      if(qMesh.prod() % 2 == 0 || kMesh.prod() % 2 == 0)
+      Warning("Relaxons solver should be run with an odd points mesh for reasons of eigenvector parity.");
+    } 
+
   }
 
   // warn the user if thickness is not set but 2d is 
@@ -835,10 +842,7 @@ void Context::inputSanityCheck() {
             "height of cell / thickness!");
     }
   }
-
 }
-
-
 
 // helper functions for printInputSummary
 template <typename T>
