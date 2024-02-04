@@ -828,10 +828,10 @@ void Context::inputSanityCheck() {
     
     // Warn users about relaxons with even meshes
     if (s.compare("relaxons") == 0) {
-      if(qMesh.prod() % 2 == 0 || kMesh.prod() % 2 == 0)
-      Warning("Relaxons solver should be run with an odd points mesh for reasons of eigenvector parity.");
+      if((qMesh.prod() % 2 == 0 && qMesh.prod() != 0) || (kMesh.prod() % 2 == 0 && kMesh.prod() != 0)) {
+        Warning("Relaxons solver should be run with an odd points mesh for reasons of eigenvector parity.");
+      }
     } 
-
   }
 
   // warn the user if thickness is not set but 2d is 
