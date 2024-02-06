@@ -831,6 +831,10 @@ void Context::inputSanityCheck() {
       if((qMesh.prod() % 2 == 0 && qMesh.prod() != 0) || (kMesh.prod() % 2 == 0 && kMesh.prod() != 0)) {
         Warning("Relaxons solver should be run with an odd points mesh for reasons of eigenvector parity.");
       }
+      if(smearingMethod == 1) { // adaptive smearing
+        Warning("Adaptive smearing can cause problems with the quality of the scattering matrix, and may cause negative eigenvalues to appear.\n"
+              "If this occurs, you should switch to Gaussian.");
+      }
     } 
   }
 
@@ -842,6 +846,7 @@ void Context::inputSanityCheck() {
             "height of cell / thickness!");
     }
   }
+
 }
 
 // helper functions for printInputSummary

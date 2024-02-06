@@ -69,10 +69,12 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
   }
 
   smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
-  if ( // innerBandStructure != outerBandStructure &&
-      smearing->getType() == DeltaFunction::tetrahedron) {
-    Error("Tetrahedron smearing for transport untested and thus blocked");
-    // not for linewidths. Although this should be double-checked
+  // block for electron scattering matrix
+  if ( innerBandStructure.getParticle().isElectron() 
+        || outerBandStructure.getParticle().isElectron() 
+        || smearing->getType() == DeltaFunction::tetrahedron) {
+    Error("Tetrahedron smearing can cause issues for electron smearing with a state filtering window,"
+        "\nwhich one essentially will always want to use.");
   }
 }
 
