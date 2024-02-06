@@ -71,8 +71,8 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
   smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
   // block for electron scattering matrix
   if ( innerBandStructure.getParticle().isElectron() 
-        || outerBandStructure.getParticle().isElectron() 
-        || smearing->getType() == DeltaFunction::tetrahedron) {
+        && outerBandStructure.getParticle().isElectron() 
+        && smearing->getType() == DeltaFunction::tetrahedron) {
     Error("Tetrahedron smearing can cause issues for electron smearing with a state filtering window,"
         "\nwhich one essentially will always want to use.");
   }

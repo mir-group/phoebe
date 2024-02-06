@@ -109,7 +109,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   mpi->allReduceSum(&innerFermi);
 
   if (smearing->getType() == DeltaFunction::tetrahedron) {
-    Error("Tetrahedron method not supported by electron scattering");
+    Error("Tetrahedron method not supported by electron scattering. It will not work properly with a\n"
+          "filtering window, and we will almost always need to use this for electrons.");
     // that's because it doesn't work with the window the way it's implemented,
     // and we will almost always have a window for electrons
   }
