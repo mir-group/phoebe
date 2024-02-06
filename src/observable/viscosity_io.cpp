@@ -19,6 +19,7 @@ void genericRelaxonEigenvectorsCheck(ParallelMatrix<double>& eigenvectors,
 
     auto is = std::get<0>(tup);
     auto gamma = std::get<1>(tup);
+    //if(std::isnan(eigenvectors(is,gamma)) || std::isnan(theta0(is))) std::cout << is << " " << gamma << " " << eigenvectors(is,gamma) << " " << theta0(is) << std::endl; 
     prodTheta0(gamma) += eigenvectors(is,gamma) * theta0(is);
     prodThetae(gamma) += eigenvectors(is,gamma) * theta_e(is);
 
@@ -131,12 +132,13 @@ void genericCalcSpecialEigenvectors(BaseBandStructure& bandStructure,
   mpi->allReduceSum(&U);
 
   // apply normalizations
-  C *= spinFactor / (volume * Npts * kBT * T);
-  theta0 *= 1./sqrt(kBT * T * volume * Npts * C);
+  C *= spinFactor / (volume * size_t(Npts) * kBT * T);
+  theta0 *= 1./sqrt(kBT * T * volume * size_t(Npts) * C);
   U *= spinFactor / (volume * Npts * kBT);
   if(particle.isPhonon()) U = 1.; // avoid making theta_e nan instead of zero
   theta_e *= 1./sqrt(kBT * U * Npts * volume);
 
+  if(mpi->mpiHead()) std::cout << "quantities : " << C << " " << Npts << " " << kBT << " " << T << " " << spinFactor << " volume " << volume << std::endl;
 
   // calculate A_i ----------------------------------------
 
@@ -170,14 +172,14 @@ void genericCalcSpecialEigenvectors(BaseBandStructure& bandStructure,
     double pop = particle.getPopPopPm1(en, kBT, chemPot); // = n(n+1)
     auto q = bandStructure.getWavevector(isIdx);
     q = bandStructure.getPoints().bzToWs(q,Points::cartesianCoordinates);
-    for (auto i : {0, 1, 2}) {
+    for (int i = 0; i < dimensionality; i++) {
       phi(i, is) = q(i) * sqrt(pop) * ds(is);
     }
   }
   mpi->allReduceSum(&phi);
   // apply normalization to phi
   for(int is = 0; is < numStates; is++) {
-    for(int i : {0,1,2}) phi(i,is) *= 1./sqrt(kBT * volume * Npts * A(i));
+    for (int i = 0; i < dimensionality; i++) phi(i,is) *= 1./sqrt(kBT * volume * Npts * A(i));
   }
 /*
   // print phi overlap
@@ -199,16 +201,25 @@ void printViscosity(std::string& viscosityName, Eigen::Tensor<double, 5>& viscos
   if (!mpi->mpiHead()) return;
 
   // TODO Very important, do we have to multiply this by height / thickness? 
-  std::string units;
-  if (dimensionality == 1)      { units = "Pa s / m^2"; } // 3d
-  else if (dimensionality == 2) { units = "Pa s / m";   } // 2d
-  else                          { units = "Pa s";       } // 1d
+  std::string units, printHeader;
+  if (dimensionality == 1)      { 
+    units = "Pa s / m^2"; 
+    printHeader = "i, eta[i,0]\n";   
+  } // 1d
+  else if (dimensionality == 2) { 
+    units = "Pa s / m";   
+    printHeader = "i, j, eta[i,j,0], eta[i,j,1]\n"; 
+  } // 2d
+  else { 
+    units = "Pa s";
+    printHeader = "i, j, k, eta[i,j,k,0], eta[i,j,k,1], eta[i,j,k,2]\n";   
+  } // 3d
 
   int numCalculations = statisticsSweep.getNumCalculations();
 
   std::cout << "\n";
   std::cout << viscosityName << " viscosity (" << units << ")\n";
-  std::cout << "i, j, k, eta[i,j,k,0], eta[i,j,k,1], eta[i,j,k,2]\n";
+  std::cout << printHeader;
 
   for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
@@ -223,7 +234,9 @@ void printViscosity(std::string& viscosityName, Eigen::Tensor<double, 5>& viscos
     for (int i = 0; i < dimensionality; i++) {
       for (int j = 0; j < dimensionality; j++) {
         for (int k = 0; k < dimensionality; k++) {
-          std::cout << i << " " << j << " " << k;
+          if(dimensionality == 1) std::cout << i;
+          if(dimensionality == 2) std::cout << i << " " << j;
+          if(dimensionality == 3) std::cout << i << " " << j << " " << k;
           for (int l = 0; l < dimensionality; l++) {
             std::cout << " " << std::setw(12) << std::right
                       << viscosityTensor(iCalc, i, j, k, l) * viscosityAuToSi;
@@ -244,7 +257,7 @@ void outputViscosityToJSON(const std::string& outFileName, const std::string& vi
 
   int numCalculations = statisticsSweep.getNumCalculations();
 
-  std::string units;
+  std::string units; // TODO CHECK THIS!
   if (dimensionality == 1) {      units = "Pa s / m^2"; } // 3d
   else if (dimensionality == 2) { units = "Pa s / m";   } // 2d
   else {                          units = "Pa s";       } // 1d
@@ -318,18 +331,18 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
   auto calcStat = statisticsSweep.getCalcStatistics(0); // only one calc for relaxons
   double kBT = calcStat.temperature;
 
-  Eigen::MatrixXd Du(3,3); Du.setZero();
-  Eigen::MatrixXd Wji0(3,3); Wji0.setZero();
+  Eigen::MatrixXd Du(dimensionality,dimensionality); Du.setZero();
+  Eigen::MatrixXd Wji0(dimensionality,dimensionality); Wji0.setZero();
   // below used only for electrons
-  Eigen::MatrixXd Wjie(3,3); Wjie.setZero();
+  Eigen::MatrixXd Wjie(dimensionality,dimensionality); Wjie.setZero();
 
   // sum over the alpha and v states that this process owns
   for (auto tup : scatteringMatrix.getAllLocalStates()) {
 
     auto is1 = std::get<0>(tup);
     auto is2 = std::get<1>(tup);
-    for (auto i : {0, 1, 2}) {
-      for (auto j : {0, 1, 2}) {
+    for (int i = 0; i < dimensionality; i++) {
+      for (int j = 0; j < dimensionality; j++) {
       /*  if(context.getUseUpperTriangle()) {
           if( i == j ) {
             Du(i,j) += phi(i,is1) * scatteringMatrix(is1,is2) * phi(j,is2);
@@ -350,8 +363,8 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
     // discard acoustic phonon modes
     if (isPhonon && en < 0.001 / ryToCmm1) { continue; }
     auto v = bandStructure.getGroupVelocity(isIdx);
-    for (auto j : {0, 1, 2}) {
-      for (auto i : {0, 1, 2}) {
+    for (int i = 0; i < dimensionality; i++) {
+      for (int j = 0; j < dimensionality; j++) {
         // note: phi and theta here are elStates long, so we need to shift the state
         // index to account for the fact that we summed over the electronic part above
         // calculate qunatities for the real-space solve
@@ -368,9 +381,9 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
   std::vector<std::vector<double>> vecDu;
   std::vector<std::vector<double>> vecWji0;
   std::vector<std::vector<double>> vecWjie;
-  for (auto i : {0, 1, 2}) {
+  for (int i = 0; i < dimensionality; i++) {
     std::vector<double> temp1,temp2,temp3;
-    for (auto j : {0, 1, 2}) {
+    for (int j = 0; j < dimensionality; j++) {
       temp1.push_back(Du(i,j) / (energyRyToFs / twoPi));
       temp2.push_back(Wji0(i,j) * velocityRyToSi);
       temp3.push_back(Wjie(i,j) * velocityRyToSi);
@@ -426,7 +439,7 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
     output["specificHeatUnit"] = specificHeatUnits;
     output["particleType"] = particle.isPhonon() ? "phonon" : "electron";
     std::vector<double> Atemp;
-    for(int i = 0; i < 3; i++) {
+    for(int i = 0; i < dimensionality; i++) {
       Atemp.push_back(A(i) * Aconversion );
     }
     output["Ai"] = Atemp;
