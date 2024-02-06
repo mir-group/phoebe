@@ -18,7 +18,7 @@ PhononThermalConductivity::PhononThermalConductivity(
 
   // set up units for writing to file
   thCondUnits = "W /(m K)";
-  if (dimensionality == 1) {
+  if (dimensionality == 3) {
     thCondConversion = thConductivityAuToSi; 
   } else if (dimensionality == 2) {
     // multiply by the height of the cell / thickness of the cell to convert 3D -> 2D.  
@@ -26,7 +26,7 @@ PhononThermalConductivity::PhononThermalConductivity(
     // we only need to divide by thickness. 
     //double height = crystal.getDirectUnitCell()(2,2);
     thCondConversion = thConductivityAuToSi * (1. / context.getThickness()); 
-  } else {
+  } else { // dim = 1
     Warning("1D conductivity should be manually adjusted for the cross-section of the material.");
     thCondConversion = thConductivityAuToSi; 
   }
