@@ -109,6 +109,7 @@ void genericCalcSpecialEigenvectors(BaseBandStructure& bandStructure,
   double U = 0;
 
   // specific heat
+  C = 0.; 
 
   // calculate the special eigenvectors ----------------
   for (int is : bandStructure.parallelStateIterator()) {
@@ -124,6 +125,7 @@ void genericCalcSpecialEigenvectors(BaseBandStructure& bandStructure,
       theta_e(is) = sqrt(pop) * ds(is);
       U += pop;
     }
+    auto popCont = pop * (en - chemPot) * (en - chemPot);
     C += pop * (en - chemPot) * (en - chemPot);
   }
   mpi->allReduceSum(&theta0);
@@ -137,9 +139,7 @@ void genericCalcSpecialEigenvectors(BaseBandStructure& bandStructure,
   U *= spinFactor / (volume * Npts * kBT);
   if(particle.isPhonon()) U = 1.; // avoid making theta_e nan instead of zero
   theta_e *= 1./sqrt(kBT * U * Npts * volume);
-
-  if(mpi->mpiHead()) std::cout << "quantities : " << C << " " << Npts << " " << kBT << " " << T << " " << spinFactor << " volume " << volume << std::endl;
-
+  
   // calculate A_i ----------------------------------------
 
   // normalization coeff A ("phonon specific momentum")
