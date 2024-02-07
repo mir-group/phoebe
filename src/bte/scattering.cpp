@@ -38,10 +38,13 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
         excludeIndices.push_back(iBte);
       }
 
-      Eigen::Vector3d k = outerBandStructure.getWavevector(isIdx);
-      if (k.squaredNorm() > 1e-8 && en < 0.) {
-        Warning("Found a phonon mode q!=0 with negative energies. "
-                "Consider improving the quality of your DFT phonon calculation.\n");
+      Eigen::Vector3d q = outerBandStructure.getWavevector(isIdx);
+      if (q.squaredNorm() > 1e-8 && en < 0.) {
+        q = outerBandStructure.getPoints().cartesianToCrystal(q);
+        Warning("Found a phonon mode q!=0 with negative energy.\n"
+                "Consider improving the quality of your DFT phonon calculation, or applying a different sum rule.\n"
+                "Energy: " + std::to_string(en * energyRyToEv*100.) + " meV, q (in crystal) = "
+                 + std::to_string(q(0)) + ", " + std::to_string(q(1)) + ", " + std::to_string(q(2)));
       }
     }
   }
@@ -70,11 +73,11 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
 
   smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
   // block for electron scattering matrix
-  if ( innerBandStructure.getParticle().isElectron() 
-        && outerBandStructure.getParticle().isElectron() 
+  if ( (innerBandStructure.getParticle().isElectron() 
+        || outerBandStructure.getParticle().isElectron() )
         && smearing->getType() == DeltaFunction::tetrahedron) {
-    Error("Tetrahedron smearing can cause issues for electron smearing with a state filtering window,"
-        "\nwhich one essentially will always want to use.");
+    Error("Tetrahedron smearing can cause issues for smearing with a state filtering window,"
+        "\nwhich one essentially will always want to use for electrons.");
   }
 }
 
