@@ -34,13 +34,20 @@ void PhononBandsApp::run(Context &context) {
   FullBandStructure fullBandStructure =
       phononH0.populate(pathPoints, withVelocities, withEigenvectors);
 
+  // TODO remove before PR
+  Eigen::Vector3d qCrys = {0.25,0.5,0};
+  phononH0.printDynToHDF5(qCrys);
+
   // arguments: bandStructure, context, pathPoints, outputFileName
   outputBandsToJSON(fullBandStructure, context, pathPoints,
                     "phonon_bands.json");
 
+
+
   if (mpi->mpiHead()) {
     std::cout << "Finishing phonon bands calculation" << std::endl;
   }
+
 }
 
 /* --------------------- ElectronWannierBandsApp --------------------- */
