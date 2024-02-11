@@ -35,11 +35,11 @@ class PhononH0 : public HarmonicHamiltonian {
 
   /** Copy constructor
    */
-  PhononH0(const PhononH0 &that);
+  //PhononH0(const PhononH0 &that);
 
   /** Copy assignment operator
    */
-  PhononH0 &operator=(const PhononH0 &that);
+  //PhononH0 &operator=(const PhononH0 &that);
 
   /** Destructor
    */
@@ -147,6 +147,13 @@ class PhononH0 : public HarmonicHamiltonian {
    * call of the kokkosBatched functions.
    */
   int estimateBatchSize(const bool& withVelocity) override;
+
+  /** Helper function to print the dynamical matrix file to HDF5, for developer testing purposes. 
+   * @param qCrys: a 3d eigen vector in crystal coordinates of the phonon wavevector.
+   * @param points: the points object with with q belongs to. Here, used only to convert q to cartesian internally. 
+  */
+  void printDynToHDF5(Eigen::Vector3d& qCrys);
+
 protected:
   /** Impose the acoustic sum rule on force constants and Born charges
    * @param sumRule: name of the sum rule to be used
@@ -161,6 +168,7 @@ protected:
                               const Eigen::Tensor<double, 7>& forceConstants);
 
   Particle particle;
+  Crystal &crystal;
 
   bool hasDielectric = false;
   int numAtoms;
@@ -216,18 +224,23 @@ protected:
 
   /** Adds the long range correction to the dynamical matrix due to dipole-ion
    * interaction.
+   * @param dyn: the dynamical matrix in the shape 3,3,natoms,natoms
+   * @param q: a 3d eigen vector with the cartesian coordinates of the phonon wavevector.
    */
   void addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                         const Eigen::VectorXd &q);
 
   /** This part computes the slow-range part of the dynamical matrix, which is
    * the Fourier transform of the force constants.
+   * @param dyn: the dynamical matrix in the shape 3,3,natoms,natoms
+   * @param q: a 3d eigen vector with the cartesian coordinates of the phonon wavevector.
    */
   void shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                       const Eigen::VectorXd &q);
 
   /** dynDiagonalize diagonalizes the dynamical matrix and returns eigenvalues and
    * eigenvectors.
+   * @param dyn: the dynamical matrix in the shape 3,3,natoms,natoms
    */
   std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> dynDiagonalize(
       Eigen::Tensor<std::complex<double>, 4> &dyn);

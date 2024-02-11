@@ -10,11 +10,16 @@
 #include "points.h"
 #include "utilities.h"
 
+#ifdef HDF5_AVAIL
+#include <highfive/H5Easy.hpp>
+#endif
+
+
 PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
                    const Eigen::Tensor<double, 3> &bornCharges_,
                    Eigen::Tensor<double, 7> &forceConstants_,
                    const std::string &sumRule)
-    : particle(Particle::phonon) {
+    : particle(Particle::phonon), crystal(crystal) {
   // in this section, we save as class properties a few variables
   // that are needed for the diagonalization of phonon frequencies
 
@@ -243,7 +248,7 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
 }
 
 // copy constructor
-PhononH0::PhononH0(const PhononH0 &that)
+/*PhononH0::PhononH0(const PhononH0 &that)
     : particle(that.particle), hasDielectric(that.hasDielectric),
       numAtoms(that.numAtoms), numBands(that.numBands),
       volumeUnitCell(that.volumeUnitCell), atomicSpecies(that.atomicSpecies),
@@ -301,7 +306,7 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     kokkosDeviceMemory->addDeviceMemoryUsage(memory);
   }
   return *this;
-}
+}*/
 
 PhononH0::~PhononH0() {
   double mem = getDeviceMemoryUsage();
@@ -331,6 +336,7 @@ PhononH0::diagonalize(Point &point) {
   return std::make_tuple(energies, eigenvectors);
 }
 
+// TODO why not just make mass scaling = true the default, then eliminate this function? 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q) {
   bool withMassScaling = true;
@@ -704,7 +710,6 @@ void PhononH0::reorderDynamicalMatrix(const Eigen::Matrix3d& directUnitCell,
   }
 
   // next, we reorder the dynamical matrix along the bravais lattice vectors
-
   bravaisVectors = Eigen::MatrixXd::Zero(3, numBravaisVectors);
   weights = Eigen::VectorXd::Zero(numBravaisVectors);
   mat2R.resize(3, 3, numAtoms, numAtoms, numBravaisVectors);
@@ -767,6 +772,7 @@ void PhononH0::reorderDynamicalMatrix(const Eigen::Matrix3d& directUnitCell,
 
 void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                               const Eigen::VectorXd &q) {
+
   // calculates the dynamical matrix at q from the (short-range part of the)
   // force constants21, by doing the Fourier transform of the force constants
 
@@ -1078,3 +1084,48 @@ int PhononH0::getIndexEigenvector(const int &iAt, const int &iPol,
   return compress2Indices(iAt, iPol, nAtoms, 3);
 }
 
+void PhononH0::printDynToHDF5(Eigen::Vector3d& qCrys) {
+	
+  // wavevector enters in crystal but must be used in cartesian 
+  auto qCart = crystal.crystalToCartesian(qCrys);
+
+  // Construct dynmat for this point 
+  Eigen::Tensor<std::complex<double>, 4> dyn(3, 3, numAtoms, numAtoms);
+  dyn.setZero();
+
+  // first, the short range term, which is just a Fourier transform
+  shortRangeTerm(dyn, qCart);
+
+  // then the long range term, which uses some convergence
+  // tricks by X. Gonze et al.
+  if (hasDielectric) {
+    addLongRangeTerm(dyn, qCart);
+  }
+
+  // the contents can be written to file like this
+  #ifdef HDF5_AVAIL
+
+    if (mpi->mpiHead()) {
+
+      // open the hdf5 file
+      HighFive::File file("dynamical_matrix.hdf5", HighFive::File::Overwrite);
+
+      // flatten the tensor in a vector
+      Eigen::VectorXcd dyn = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(dyn.data(), dyn.size());
+
+      // write dyn to hdf5
+      HighFive::DataSet ddyn = file.createDataSet<std::complex<double>>(
+          "/dynamicalMatrix", HighFive::DataSpace::From(dyn));
+      ddyn.write(dyn);
+
+      // write the qpoint
+      HighFive::DataSet dq = file.createDataSet<double>("/crystalWavevector", HighFive::DataSpace::From(qCrys));
+      dq.write(qCrys);
+
+    }
+
+  #else
+    Error("One needs to build with HDF5 to write the dynamical matrix to file!");
+  #endif
+
+}
