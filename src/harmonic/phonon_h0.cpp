@@ -1090,8 +1090,9 @@ void PhononH0::printDynToHDF5(Eigen::Vector3d& qCrys) {
   auto qCart = crystal.crystalToCartesian(qCrys);
 
   // Construct dynmat for this point 
-  Eigen::Tensor<std::complex<double>, 4> dyn(3, 3, numAtoms, numAtoms);
-  dyn.setZero();
+  Eigen::Tensor<std::complex<double>, 4> dyn; 
+  dyn.resize(3, 3, numAtoms, numAtoms);      
+  dyn.setZero(); // might be unnecessary 
 
   // first, the short range term, which is just a Fourier transform
   shortRangeTerm(dyn, qCart);
@@ -1107,23 +1108,44 @@ void PhononH0::printDynToHDF5(Eigen::Vector3d& qCrys) {
 
     if (mpi->mpiHead()) {
 
-      // open the hdf5 file
-      HighFive::File file("dynamical_matrix.hdf5", HighFive::File::Overwrite);
+      try {
 
-      // flatten the tensor in a vector
-      Eigen::VectorXcd dyn = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(dyn.data(), dyn.size());
+        std::string outFileName = "dynamical_matrix.hdf5";
 
-      // write dyn to hdf5
-      HighFive::DataSet ddyn = file.createDataSet<std::complex<double>>(
-          "/dynamicalMatrix", HighFive::DataSpace::From(dyn));
-      ddyn.write(dyn);
+        // if the hdf5 file is there already, we want to delete it. Occasionally
+        // these files seem to get stuck open when a process dies while writing to
+        // them, (even if a python script dies) and then they can't be overwritten
+        // properly.
+        std::remove(&outFileName[0]);
 
-      // write the qpoint
-      HighFive::DataSet dq = file.createDataSet<double>("/crystalWavevector", HighFive::DataSpace::From(qCrys));
-      dq.write(qCrys);
+        // open the hdf5 file
+        HighFive::File file(outFileName, HighFive::File::Overwrite);
 
+        // flatten the tensor in a vector
+        Eigen::VectorXcd dynFlat = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(dyn.data(), dyn.size());
+
+        // write dyn to hdf5
+        HighFive::DataSet ddyn = file.createDataSet<std::complex<double>>(
+            "/dynamicalMatrix", HighFive::DataSpace::From(dynFlat));
+        ddyn.write(dynFlat);
+
+        // write the qpoint
+        HighFive::DataSet dq = file.createDataSet<double>("/crystalWavevector", HighFive::DataSpace::From(qCrys));
+        dq.write(qCrys);
+
+        // write the qpoint
+        Eigen::VectorXi dims(4);
+        dims(0) = 3; 
+        dims(1) = 3; 
+        dims(2) = numAtoms;
+        dims(3) = numAtoms;
+        HighFive::DataSet ddims = file.createDataSet<int>("/dimensions", HighFive::DataSpace::From(dims));
+        ddims.write(dims);
+
+      } catch (std::exception &error) {
+      Error("Issue writing dynamical matrix to hdf5.");
+      }
     }
-
   #else
     Error("One needs to build with HDF5 to write the dynamical matrix to file!");
   #endif
