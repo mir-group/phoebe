@@ -193,7 +193,7 @@ VectorEPA TransportEpaApp::getScatteringRates(
     return crtRate;
   }
 
-  int spinFactor = 2;
+  double spinFactor = 2.;
   if (context.getHasSpinOrbit()) {
     spinFactor = 1;
   }
