@@ -35,11 +35,11 @@ class PhononH0 : public HarmonicHamiltonian {
 
   /** Copy constructor
    */
-  //PhononH0(const PhononH0 &that);
+  PhononH0(const PhononH0 &that);
 
   /** Copy assignment operator
    */
-  //PhononH0 &operator=(const PhononH0 &that);
+  PhononH0 &operator=(const PhononH0 &that);
 
   /** Destructor
    */
@@ -148,9 +148,9 @@ class PhononH0 : public HarmonicHamiltonian {
    */
   int estimateBatchSize(const bool& withVelocity) override;
 
-  /** Helper function to print the dynamical matrix file to HDF5, for developer testing purposes. 
+  /** Helper function to print the dynamical matrix file to HDF5, for developer testing purposes.
    * @param qCrys: a 3d eigen vector in crystal coordinates of the phonon wavevector.
-   * @param points: the points object with with q belongs to. Here, used only to convert q to cartesian internally. 
+   * @param points: the points object with with q belongs to. Here, used only to convert q to cartesian internally.
   */
   void printDynToHDF5(Eigen::Vector3d& qCrys);
 

@@ -248,9 +248,9 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
 }
 
 // copy constructor
-/*PhononH0::PhononH0(const PhononH0 &that)
+PhononH0::PhononH0(const PhononH0 &that)
     : particle(that.particle), hasDielectric(that.hasDielectric),
-      numAtoms(that.numAtoms), numBands(that.numBands),
+      numAtoms(that.numAtoms), numBands(that.numBands), crystal(that.crystal),
       volumeUnitCell(that.volumeUnitCell), atomicSpecies(that.atomicSpecies),
       speciesMasses(that.speciesMasses), atomicPositions(that.atomicPositions),
       dielectricMatrix(that.dielectricMatrix), bornCharges(that.bornCharges),
@@ -279,6 +279,7 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     hasDielectric = that.hasDielectric;
     numAtoms = that.numAtoms;
     numBands = that.numBands;
+    crystal = that.crystal;
     volumeUnitCell = that.volumeUnitCell;
     atomicSpecies = that.atomicSpecies;
     speciesMasses = that.speciesMasses;
@@ -292,7 +293,6 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     mat2R = that.mat2R;
     gVectors = that.gVectors;
     longRangeCorrection1 = that.longRangeCorrection1;
-
     atomicMasses_d = that.atomicMasses_d;
     longRangeCorrection1_d = that.longRangeCorrection1_d;
     gVectors_d = that.gVectors_d;
@@ -306,7 +306,7 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     kokkosDeviceMemory->addDeviceMemoryUsage(memory);
   }
   return *this;
-}*/
+}
 
 PhononH0::~PhononH0() {
   double mem = getDeviceMemoryUsage();
@@ -336,7 +336,7 @@ PhononH0::diagonalize(Point &point) {
   return std::make_tuple(energies, eigenvectors);
 }
 
-// TODO why not just make mass scaling = true the default, then eliminate this function? 
+// TODO why not just make mass scaling = true the default, then eliminate this function?
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q) {
   bool withMassScaling = true;
@@ -1085,14 +1085,14 @@ int PhononH0::getIndexEigenvector(const int &iAt, const int &iPol,
 }
 
 void PhononH0::printDynToHDF5(Eigen::Vector3d& qCrys) {
-	
-  // wavevector enters in crystal but must be used in cartesian 
+
+  // wavevector enters in crystal but must be used in cartesian
   auto qCart = crystal.crystalToCartesian(qCrys);
 
-  // Construct dynmat for this point 
-  Eigen::Tensor<std::complex<double>, 4> dyn; 
-  dyn.resize(3, 3, numAtoms, numAtoms);      
-  dyn.setZero(); // might be unnecessary 
+  // Construct dynmat for this point
+  Eigen::Tensor<std::complex<double>, 4> dyn;
+  dyn.resize(3, 3, numAtoms, numAtoms);
+  dyn.setZero(); // might be unnecessary
 
   // first, the short range term, which is just a Fourier transform
   shortRangeTerm(dyn, qCart);
@@ -1135,8 +1135,8 @@ void PhononH0::printDynToHDF5(Eigen::Vector3d& qCrys) {
 
         // write the qpoint
         Eigen::VectorXi dims(4);
-        dims(0) = 3; 
-        dims(1) = 3; 
+        dims(0) = 3;
+        dims(1) = 3;
         dims(2) = numAtoms;
         dims(3) = numAtoms;
         HighFive::DataSet ddims = file.createDataSet<int>("/dimensions", HighFive::DataSpace::From(dims));
