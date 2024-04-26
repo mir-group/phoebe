@@ -10,13 +10,26 @@
 #include <Kokkos_ScatterView.hpp>
 
 PhononThermalConductivity::PhononThermalConductivity(
-    Context &context_, StatisticsSweep &statisticsSweep_, Crystal &crystal_,
-    BaseBandStructure &bandStructure_)
-    : Observable(context_, statisticsSweep_, crystal_),
-      bandStructure(bandStructure_) {
-  tensordxd =
-      Eigen::Tensor<double, 3>(numCalculations, dimensionality, dimensionality);
+    Context &context_, StatisticsSweep &statisticsSweep_, Crystal &crystal_, BaseBandStructure &bandStructure_)
+    : Observable(context_, statisticsSweep_, crystal_), bandStructure(bandStructure_) {
+
+  tensordxd = Eigen::Tensor<double, 3>(numCalculations, dimensionality, dimensionality);
   tensordxd.setZero();
+
+  // set up units for writing to file
+  thCondUnits = "W /(m K)";
+  if (dimensionality == 3) {
+    thCondConversion = thConductivityAuToSi; 
+  } else if (dimensionality == 2) {
+    // multiply by the height of the cell / thickness of the cell to convert 3D -> 2D.  
+    // Because the unit cell volume is already reduced for dimensionality, 
+    // we only need to divide by thickness. 
+    //double height = crystal.getDirectUnitCell()(2,2);
+    thCondConversion = thConductivityAuToSi * (1. / context.getThickness()); 
+  } else { // dim = 1
+    Warning("1D conductivity should be manually adjusted for the cross-section of the material.");
+    thCondConversion = thConductivityAuToSi; 
+  }
 }
 
 // copy constructor
@@ -50,8 +63,7 @@ void PhononThermalConductivity::calcFromCanonicalPopulation(VectorBTE &f) {
 
 void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
 
-  double norm = 1. / context.getQMesh().prod() /
-                crystal.getVolumeUnitCell(dimensionality);
+  double norm = 1. / context.getQMesh().prod() / crystal.getVolumeUnitCell(dimensionality);
 
   auto excludeIndices = n.excludeIndices;
 
@@ -60,7 +72,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
   std::vector<int> iss = bandStructure.parallelIrrStateIterator();
   int niss = iss.size();
 
-  Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> tensordxd_k(tensordxd.data(), numCalculations, 3, 3);
+  Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> tensordxd_k(tensordxd.data(), numCalculations, dimensionality, dimensionality);
   Kokkos::Experimental::ScatterView<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_tensordxd(tensordxd_k);
   Kokkos::parallel_for("phonon_thermal_cond", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
 
@@ -86,13 +98,13 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
         for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
 
           Eigen::Vector3d nRot;
-          for (int i : {0, 1, 2}) {
+          for (int i = 0; i < dimensionality; i++) {
             nRot(i) = n(iCalc, i, iBte);
           }
           nRot = rot * nRot;
 
-          for (int j : {0, 1, 2}) {
-            for (int i : {0, 1, 2}) {
+          for (int j = 0; j < dimensionality; j++) {
+            for (int i = 0; i < dimensionality; i++) {
               tensorPrivate(iCalc, i, j) += nRot(i) * vel(j) * en * norm;
             }
           }
@@ -135,6 +147,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
 
 void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
                                                 VectorBTE &b) {
+
   double norm = 1. / context.getQMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
   auto excludeIndices = f.excludeIndices;
@@ -149,8 +162,9 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
   std::vector<int> iss = bandStructure.parallelIrrStateIterator();
   int niss = iss.size();
 
-  Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> y1_k(y1.data(), numCalculations, 3, 3),
-    y2_k(y2.data(), numCalculations, 3, 3);
+  // TODO should these be dimensionality? 
+  Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> y1_k(y1.data(), numCalculations, dimensionality, dimensionality),
+    y2_k(y2.data(), numCalculations, dimensionality, dimensionality);
   Kokkos::Experimental::ScatterView<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_y1(y1_k), scatter_y2(y2_k);
   Kokkos::parallel_for("electron_viscosity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
       auto x1 = scatter_y1.access();
@@ -158,8 +172,7 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
 
       int is = iss[iis];
       // skip the acoustic phonons
-      if (std::find(excludeIndices.begin(), excludeIndices.end(), is) !=
-          excludeIndices.end()) {
+      if (std::find(excludeIndices.begin(), excludeIndices.end(), is) != excludeIndices.end()) {
         return;
       }
 
@@ -177,7 +190,7 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
           double norm2 = norm * temp * temp;
 
           Eigen::Vector3d fRot, afRot, bRot;
-          for (int i : {0, 1, 2}) {
+          for (int i = 0; i < dimensionality; i++) {
             fRot(i) = f(iCalc, i, isBte);
             afRot(i) = af(iCalc, i, isBte);
             bRot(i) = b(iCalc, i, isBte);
@@ -186,8 +199,8 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
           afRot = rot * afRot;
           bRot = rot * bRot;
 
-          for (int i : {0, 1, 2}) {
-            for (int j : {0, 1, 2}) {
+          for (int i = 0; i < dimensionality; i++) {
+            for (int j = 0; j < dimensionality; j++) {
               x1(iCalc, i, j) += fRot(i) * afRot(j) * norm2;
               x2(iCalc, i, j) += fRot(i) * bRot(j) * norm2;
             }
@@ -247,7 +260,7 @@ void PhononThermalConductivity::calcFromRelaxons(
   int iCalc = 0; // relaxons only allows one calc in memory
   double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
   double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-  VectorBTE population(statisticsSweep, bandStructure, 3);
+  VectorBTE population(statisticsSweep, bandStructure, dimensionality);
 
   // if we only calculated some eigenvalues,
   // we should not include any alpha
@@ -323,7 +336,7 @@ void PhononThermalConductivity::calcFromRelaxons(
     shared(bandStructure, eigenvectors, relaxonsPopulation, population,             \
            scatteringMatrix, iCalc, localStates, nlocalStates)
     {
-      Eigen::MatrixXd popPrivate(3, bandStructure.irrStateIterator().size());
+      Eigen::MatrixXd popPrivate(dimensionality, bandStructure.irrStateIterator().size());
       popPrivate.setZero();
 
 #pragma omp for nowait
@@ -342,8 +355,8 @@ void PhononThermalConductivity::calcFromRelaxons(
 
 #pragma omp critical
       for (int is = 0; is < popPrivate.cols(); is++) {
-        for (int iDim = 0; iDim < 3; iDim++) {
-          population(iCalc, iDim, is) += popPrivate(iDim, is);
+        for (int i = 0; i < dimensionality; i++) {
+          population(iCalc, i, is) += popPrivate(i, is);
         }
       }
     }
@@ -351,12 +364,12 @@ void PhononThermalConductivity::calcFromRelaxons(
 
   } else { // case without symmetries ------------------------------------------
 
-    Eigen::MatrixXd relaxonsPopulation(eigenvalues.size(), 3);
+    Eigen::MatrixXd relaxonsPopulation(eigenvalues.size(), dimensionality);
     relaxonsPopulation.setZero();
 #pragma omp parallel default(none)                                             \
     shared(eigenvectors, eigenvalues, temp, chemPot, particle, relaxonsPopulation, localStates, nlocalStates)
     {
-      Eigen::MatrixXd relaxonsPopPrivate(eigenvalues.size(), 3);
+      Eigen::MatrixXd relaxonsPopPrivate(eigenvalues.size(), dimensionality); 
       relaxonsPopPrivate.setZero();
 #pragma omp for nowait
       for(int ilocalState = 0; ilocalState < nlocalStates; ilocalState++){
@@ -369,7 +382,7 @@ void PhononThermalConductivity::calcFromRelaxons(
           auto vel = bandStructure.getGroupVelocity(isIdx);
           double term = sqrt(particle.getPopPopPm1(en, temp, chemPot));
           double dndt = particle.getDndt(en, temp, chemPot);
-          for (int i = 0; i < 3; i++) {
+          for (int i = 0; i < dimensionality; i++) {
             relaxonsPopPrivate(alpha, i) += dndt / term * vel(i) *
                                        eigenvectors(is, alpha) /
                                        eigenvalues(alpha);
@@ -378,7 +391,7 @@ void PhononThermalConductivity::calcFromRelaxons(
       }
 #pragma omp critical
       for (int alpha = 0; alpha < eigenvalues.size(); alpha++) {
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < dimensionality; i++) {
           relaxonsPopulation(alpha, i) += relaxonsPopPrivate(alpha, i);
         }
       }
@@ -389,7 +402,7 @@ void PhononThermalConductivity::calcFromRelaxons(
 #pragma omp parallel default(none)                                             \
     shared(eigenvectors, relaxonsPopulation, population, iCalc, localStates, nlocalStates)
     {
-      Eigen::MatrixXd popPrivate(3, bandStructure.getNumStates());
+      Eigen::MatrixXd popPrivate(dimensionality, bandStructure.getNumStates());
       popPrivate.setZero();
 
 #pragma omp for nowait
@@ -397,13 +410,13 @@ void PhononThermalConductivity::calcFromRelaxons(
         std::tuple<int,int> tup0 = localStates[ilocalState];
         int is = std::get<0>(tup0);
         int alpha = std::get<1>(tup0);
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < dimensionality; i++) {
           popPrivate(i, is) += eigenvectors(is, alpha) * relaxonsPopulation(alpha, i);
         }
       }
 #pragma omp critical
       for (int is = 0; is < bandStructure.getNumStates(); is++) {
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < dimensionality; i++) {
           population(iCalc, i, is) += popPrivate(i, is);
         }
       }
@@ -423,8 +436,8 @@ void PhononThermalConductivity::calcFromRelaxons(
     int iBte = bandStructure.stateToBte(isIdx).get();
     if (en > 0.) {
       double term = particle.getPopPopPm1(en, temp, chemPot);
-      for (int iDim = 0; iDim < 3; iDim++) {
-        population(iCalc, iDim, iBte) *= sqrt(term);
+      for (int i = 0; i < dimensionality; i++) {
+        population(iCalc, i, iBte) *= sqrt(term);
       }
     }
   }
@@ -433,20 +446,11 @@ void PhononThermalConductivity::calcFromRelaxons(
 }
 
 void PhononThermalConductivity::print() {
-  if (!mpi->mpiHead())
-    return;
 
-  std::string units;
-  if (dimensionality == 1) {
-    units = "W m / K";
-  } else if (dimensionality == 2) {
-    units = "W / K";
-  } else {
-    units = "W / m / K";
-  }
+  if (!mpi->mpiHead()) return;
 
   std::cout << "\n";
-  std::cout << "Thermal Conductivity (" << units << ")\n";
+  std::cout << "Thermal Conductivity (" << thCondUnits << ")\n";
 
   for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
@@ -460,7 +464,7 @@ void PhononThermalConductivity::print() {
       std::cout << "  " << std::scientific;
       for (int j = 0; j < dimensionality; j++) {
         std::cout << " " << std::setw(13) << std::right;
-        std::cout << tensordxd(iCalc, i, j) * thConductivityAuToSi;
+        std::cout << tensordxd(iCalc, i, j) * thCondConversion;
       }
       std::cout << "\n";
     }
@@ -469,17 +473,8 @@ void PhononThermalConductivity::print() {
 }
 
 void PhononThermalConductivity::outputToJSON(const std::string &outFileName) {
-  if (!mpi->mpiHead())
-    return;
 
-  std::string units;
-  if (dimensionality == 1) {
-    units = "W m / K";
-  } else if (dimensionality == 2) {
-    units = "W / K";
-  } else {
-    units = "W /(m K)";
-  }
+  if (!mpi->mpiHead()) return;
 
   std::vector<double> temps;
   std::vector<std::vector<std::vector<double>>> conductivities;
@@ -495,7 +490,7 @@ void PhononThermalConductivity::outputToJSON(const std::string &outFileName) {
     for (int i = 0; i < dimensionality; i++) {
       std::vector<double> cols;
       for (int j = 0; j < dimensionality; j++) {
-        cols.push_back(tensordxd(iCalc, i, j) * thConductivityAuToSi);
+        cols.push_back(tensordxd(iCalc, i, j) * thCondConversion);
       }
       rows.push_back(cols);
     }
@@ -507,7 +502,7 @@ void PhononThermalConductivity::outputToJSON(const std::string &outFileName) {
   output["temperatures"] = temps;
   output["thermalConductivity"] = conductivities;
   output["temperatureUnit"] = "K";
-  output["thermalConductivityUnit"] = units;
+  output["thermalConductivityUnit"] = thCondUnits;
   output["particleType"] = "phonon";
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;
@@ -515,8 +510,8 @@ void PhononThermalConductivity::outputToJSON(const std::string &outFileName) {
 }
 
 void PhononThermalConductivity::print(const int &iter) {
-  if (!mpi->mpiHead())
-    return;
+
+  if (!mpi->mpiHead()) return;
 
   // get the time
   time_t currentTime;
@@ -536,7 +531,7 @@ void PhononThermalConductivity::print(const int &iter) {
     std::cout.precision(5);
     for (int i = 0; i < dimensionality; i++) {
       std::cout << std::scientific;
-      std::cout << tensordxd(iCalc, i, i) * thConductivityAuToSi << " ";
+      std::cout << tensordxd(iCalc, i, i) * thCondConversion << " ";
     }
     std::cout << "\n";
   }

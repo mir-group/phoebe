@@ -481,8 +481,8 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
     hasDielectric = true;
   }
 
-  //	if there are the dielectric info, we can read dielectric matrix
-  //	and the Born charges
+  // if there are the dielectric info, we can read dielectric matrix
+  // and the Born charges
   Eigen::Matrix3d dielectricMatrix = Eigen::Matrix3d::Zero();
   Eigen::Tensor<double, 3> bornCharges(numAtoms, 3, 3);
   bornCharges.setZero();
@@ -656,7 +656,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
   directUnitCell(1, 2) = std::stod(lineSplit[1]);
   directUnitCell(2, 2) = std::stod(lineSplit[2]);
 
-  // Now we parse the electronic structure
+  // Now we parse the electronic structure ============================
 
   pugi::xml_node bandStructureXML = output.child("band_structure");
   bool isLSDA = bandStructureXML.child("lsda").text().as_bool();
@@ -666,7 +666,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
   // note: nelec is written as double in the XML file!
   int numElectrons = int(bandStructureXML.child("nelec").text().as_double());
 
-  // get fermi energy
+  // get fermi energy or HOMO ---------------------
   double homo;
   // it's an insulator
   if (bandStructureXML.child("highestOccupiedLevel")) {
@@ -678,6 +678,8 @@ QEParser::parseElHarmonicFourier(Context &context) {
         "nor fermi_energy tags appear in XML file.");
   }
   homo *= 2.;// conversion from Hartree to Rydberg
+
+  // parse the points grid -------------------------------------
   int numIrreduciblePoints = bandStructureXML.child("nks").text().as_int();
 
   pugi::xml_node startingKPoints = bandStructureXML.child("starting_k_points");
@@ -690,16 +692,15 @@ QEParser::parseElHarmonicFourier(Context &context) {
         "doesn't make sense for Phoebe -- likely you forgot to perform NSCF on\n"
         "the full k-mesh first.");
     }
-    // Error("Grid found in QE:XML, should have used full kPoints grid");
+    Error("Grid found in QE:XML, should have used full kPoints grid");
   }
 
   // Initialize the crystal class
-
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                   speciesNames, speciesMasses);
   crystal.print();
 
-  // initialize reciprocal lattice cell
+  // initialize reciprocal lattice cell --------------------------
   // I need this to convert kPoints from cartesian to crystal coordinates
 
   pugi::xml_node basisSet = output.child("basis_set");
@@ -718,7 +719,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
   bVectors(1, 2) = std::stod(lineSplit[1]);
   bVectors(2, 2) = std::stod(lineSplit[2]);
 
-  // parse k-points and energies
+  // parse k-points and energies ----------------------------
 
   Eigen::Matrix<double, 3, Eigen::Dynamic> irrPoints(3, numIrreduciblePoints);
   Eigen::VectorXd irrWeights(numIrreduciblePoints);

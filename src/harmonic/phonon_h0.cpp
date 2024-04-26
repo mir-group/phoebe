@@ -10,11 +10,16 @@
 #include "points.h"
 #include "utilities.h"
 
+#ifdef HDF5_AVAIL
+#include <highfive/H5Easy.hpp>
+#endif
+
+
 PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
                    const Eigen::Tensor<double, 3> &bornCharges_,
                    Eigen::Tensor<double, 7> &forceConstants_,
                    const std::string &sumRule)
-    : particle(Particle::phonon) {
+    : particle(Particle::phonon), crystal(crystal) {
   // in this section, we save as class properties a few variables
   // that are needed for the diagonalization of phonon frequencies
 
@@ -245,7 +250,7 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
 // copy constructor
 PhononH0::PhononH0(const PhononH0 &that)
     : particle(that.particle), hasDielectric(that.hasDielectric),
-      numAtoms(that.numAtoms), numBands(that.numBands),
+      numAtoms(that.numAtoms), numBands(that.numBands), crystal(that.crystal),
       volumeUnitCell(that.volumeUnitCell), atomicSpecies(that.atomicSpecies),
       speciesMasses(that.speciesMasses), atomicPositions(that.atomicPositions),
       dielectricMatrix(that.dielectricMatrix), bornCharges(that.bornCharges),
@@ -274,6 +279,7 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     hasDielectric = that.hasDielectric;
     numAtoms = that.numAtoms;
     numBands = that.numBands;
+    crystal = that.crystal;
     volumeUnitCell = that.volumeUnitCell;
     atomicSpecies = that.atomicSpecies;
     speciesMasses = that.speciesMasses;
@@ -287,7 +293,6 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     mat2R = that.mat2R;
     gVectors = that.gVectors;
     longRangeCorrection1 = that.longRangeCorrection1;
-
     atomicMasses_d = that.atomicMasses_d;
     longRangeCorrection1_d = that.longRangeCorrection1_d;
     gVectors_d = that.gVectors_d;
@@ -331,6 +336,7 @@ PhononH0::diagonalize(Point &point) {
   return std::make_tuple(energies, eigenvectors);
 }
 
+// TODO why not just make mass scaling = true the default, then eliminate this function?
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q) {
   bool withMassScaling = true;
@@ -704,7 +710,6 @@ void PhononH0::reorderDynamicalMatrix(const Eigen::Matrix3d& directUnitCell,
   }
 
   // next, we reorder the dynamical matrix along the bravais lattice vectors
-
   bravaisVectors = Eigen::MatrixXd::Zero(3, numBravaisVectors);
   weights = Eigen::VectorXd::Zero(numBravaisVectors);
   mat2R.resize(3, 3, numAtoms, numAtoms, numBravaisVectors);
@@ -767,6 +772,7 @@ void PhononH0::reorderDynamicalMatrix(const Eigen::Matrix3d& directUnitCell,
 
 void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                               const Eigen::VectorXd &q) {
+
   // calculates the dynamical matrix at q from the (short-range part of the)
   // force constants21, by doing the Fourier transform of the force constants
 
@@ -1078,3 +1084,70 @@ int PhononH0::getIndexEigenvector(const int &iAt, const int &iPol,
   return compress2Indices(iAt, iPol, nAtoms, 3);
 }
 
+void PhononH0::printDynToHDF5(Eigen::Vector3d& qCrys) {
+
+  // wavevector enters in crystal but must be used in cartesian
+  auto qCart = crystal.crystalToCartesian(qCrys);
+
+  // Construct dynmat for this point
+  Eigen::Tensor<std::complex<double>, 4> dyn;
+  dyn.resize(3, 3, numAtoms, numAtoms);
+  dyn.setZero(); // might be unnecessary
+
+  // first, the short range term, which is just a Fourier transform
+  shortRangeTerm(dyn, qCart);
+
+  // then the long range term, which uses some convergence
+  // tricks by X. Gonze et al.
+  if (hasDielectric) {
+    addLongRangeTerm(dyn, qCart);
+  }
+
+  // the contents can be written to file like this
+  #ifdef HDF5_AVAIL
+
+    if (mpi->mpiHead()) {
+
+      try {
+
+        std::string outFileName = "dynamical_matrix.hdf5";
+
+        // if the hdf5 file is there already, we want to delete it. Occasionally
+        // these files seem to get stuck open when a process dies while writing to
+        // them, (even if a python script dies) and then they can't be overwritten
+        // properly.
+        std::remove(&outFileName[0]);
+
+        // open the hdf5 file
+        HighFive::File file(outFileName, HighFive::File::Overwrite);
+
+        // flatten the tensor in a vector
+        Eigen::VectorXcd dynFlat = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(dyn.data(), dyn.size());
+
+        // write dyn to hdf5
+        HighFive::DataSet ddyn = file.createDataSet<std::complex<double>>(
+            "/dynamicalMatrix", HighFive::DataSpace::From(dynFlat));
+        ddyn.write(dynFlat);
+
+        // write the qpoint
+        HighFive::DataSet dq = file.createDataSet<double>("/crystalWavevector", HighFive::DataSpace::From(qCrys));
+        dq.write(qCrys);
+
+        // write the qpoint
+        Eigen::VectorXi dims(4);
+        dims(0) = 3;
+        dims(1) = 3;
+        dims(2) = numAtoms;
+        dims(3) = numAtoms;
+        HighFive::DataSet ddims = file.createDataSet<int>("/dimensions", HighFive::DataSpace::From(dims));
+        ddims.write(dims);
+
+      } catch (std::exception &error) {
+      Error("Issue writing dynamical matrix to hdf5.");
+      }
+    }
+  #else
+    Error("One needs to build with HDF5 to write the dynamical matrix to file!");
+  #endif
+
+}
