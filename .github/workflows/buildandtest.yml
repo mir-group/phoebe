@@ -17,8 +17,8 @@ jobs:
           ]
     env:
       OMP_NUM_THREADS: 4
-    name: "Ubuntu 22.04 ( ${{ matrix.compiler  }} OpenMP ( ${{ matrix.omp }} ) , MPI ( ${{ matrix.mpi }} ))"
-    runs-on: ubuntu-22.04
+    name: "Ubuntu 24.04 ( ${{ matrix.compiler  }} OpenMP ( ${{ matrix.omp }} ) , MPI ( ${{ matrix.mpi }} ))"
+    runs-on: ubuntu-24.04
     steps:
       - name: Install dependencies
         run: |
