@@ -12,9 +12,9 @@ filename: team
 
 <script type="text/javascript" src="https://platform.linkedin.com/badges/js/profile.js" async defer></script>
 
-<h1>Phoebe is developed by Jenny Coulter, currently at the Flatiron Institute (CCQ), and the MIR group at Harvard University.</h1>
+<h2>Phoebe is maintained by Jenny Coulter, currently at the Flatiron Institute (CCQ), and the MIR group at Harvard University.</h2>
 
-<h1>The Phoebe Team</h1>
+<h2>The Phoebe Team:</h2>
 
 <div class="row">
 
