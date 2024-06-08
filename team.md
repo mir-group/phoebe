@@ -12,43 +12,34 @@ filename: team
 
 <script type="text/javascript" src="https://platform.linkedin.com/badges/js/profile.js" async defer></script>
 
-<h1>Phoebe is developed by the MIR group at Harvard University.</h1>
-You can follow the Materials Research Intelligence group on Twitter below, or
-visit <a href="https://bkoz.seas.harvard.edu/">our website</a> to learn more about the group.
+<h1>Phoebe is developed by Jenny Coulter, currently at the Flatiron Institute (CCQ), and the MIR group at Harvard University.</h1>
 
-<a href="https://twitter.com/materials_intel?lang=en" class="twitter-follow-button" data-show-count="false">@Materials_Intel</a><script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-
-<h1>Meet The Phoebe Team</h1>
+<h1>The Phoebe Team</h1>
 
 <div class="row">
-  <div class="column">
-    <div class="card">
-      <img src="pictures/andrea.jpg" alt="Andrea" style="width:100%">
-      <div class="container"  style="padding-bottom:0em">
-        <h2>Andrea Cepellotti</h2>
-        <p class="title"  style="margin:0">Research Associate</p><em>Harvard University</em>
-        <p>
-          <a style="text-decoration:none" href="https://www.linkedin.com/in/andrea-cepellotti">
-          <i class="fa fa-linkedin-square fa_custom"></i>
-          </a>
-          <a style="text-decoration:none" href="mailto:acepellotti@g.harvard.edu">
-            <i class="fa fa-envelope"></i>
-          </a>
-          <a style="text-decoration:none" href="https://scholar.google.com/citations?user=5qwgh3UAAAAJ&hl=en-us">
-            <i class="fa fa-google" aria-hidden="true"></i>
-          </a>
-        </p>
-      </div>
-    </div>
-  </div>
 
   <div class="column">
     <div class="card">
       <img src="pictures/jcoulter.png" alt="Jenny" style="width:100%">
       <div class="container" style="padding-bottom:1em">
         <h2>Jenny Coulter</h2>
-        <p class="title"  style="margin:0"> Ph.D. student</p>
-        <em>Harvard University</em>
+        <p class="title"  style="margin:0"> Flatiron Research Fellow</p>
+        <em>Flatiron Institute, Center for Computational Quantum Physics (CCQ)</em>
+        <p>
+          <a style="text-decoration:none" href="mailto:jcoulter@flatironinstitute.org">
+            <i class="fa fa-envelope"></i>
+          </a>
+        </p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="column">
+    <div class="card">
+      <img src="pictures/andrea.jpg" alt="Andrea" style="width:100%">
+      <div class="container"  style="padding-bottom:0em">
+        <h2>Andrea Cepellotti</h2>
+        <p class="title"  style="margin:0">Research Scientist</p><em>Microsoft, Azure Quantum Elements</em>
       </div>
     </div>
   </div>
@@ -58,7 +49,7 @@ visit <a href="https://bkoz.seas.harvard.edu/">our website</a> to learn more abo
       <img src="pictures/anders.jpg" alt="Anders" style="width:100%">
       <div class="container" style="padding-bottom:1em">
         <h2>Anders Johansson</h2>
-        <p class="title"  style="margin:0">Ph.D. student</p><em>Harvard University</em>
+        <p class="title"  style="margin:0">Postdoctoral Researcher</p><em>Sandia National Laboratory</em>
       </div>
     </div>
   </div>
@@ -78,7 +69,7 @@ visit <a href="https://bkoz.seas.harvard.edu/">our website</a> to learn more abo
       <img src="pictures/kozinsky.jpg" alt="Boris" style="width:100%">
       <div class="container"  style="padding-bottom:1em">
         <h2>Boris Kozinsky</h2>
-        <p class="title" style="margin:0">Associate Professor</p><em>Harvard University</em>
+        <p class="title" style="margin:0">Gordon McKay Professor of Materials Science and Mechanical Engineering</p><em>Harvard University</em>
       </div>
     </div>
   </div>
