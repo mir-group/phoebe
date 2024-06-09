@@ -7,7 +7,7 @@ As explained in the theory section about the electron-phonon coupling with Wanni
 The code is modified on a separate git repository available [at this link](https://github.com/mir-group/phoebe-quantum-espresso/).
 This repository is a fork from the official QE repository.
 To develop a new patch or update it to the latest QE version, remember to pull from the remote quantum espresso repository.
-For the first Phoebe release, we only patched the latest QE 6.6 version, although a retrofit should be doable.
+Currently we have only patched the latest QE 7.0 version, although we will continue to update this. 
 
 **Files changed**
 
@@ -55,8 +55,8 @@ git push -f --tags origin master
 
 
 
-Checkout the branch with the version of QE that we want to patch, for example, v6.6 is stored in the branch `qe-6.6`.
-Create a new branch from `qe-6.6`, which we call `patched-qe-6.6`, and modify the source code with the lines of code needed by phoebe.
+Checkout the branch with the version of QE that we want to patch, for example, v7.0 is stored in the branch `qe-7.0`.
+Create a new branch from `qe-7.0`, which we call `patched-qe-7.0`, and modify the source code with the lines of code needed by phoebe.
 Alternatively, you may create the new branch `patched-qe-6.6` from an older patched branch, e.g. `patched-qe-6.5`, and pull the new commits of `qe-6.6` into `patched-qe-6.6`.
 
 **Patch creation**
