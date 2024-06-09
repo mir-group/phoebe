@@ -1,6 +1,6 @@
 .. Phoebe documentation master file
 
-Welcome to Phoebe's documentation!
+Welcome to Phoebe's documentation
 ==================================
 
 .. toctree::
