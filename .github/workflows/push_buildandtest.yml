@@ -1,19 +1,16 @@
-name: Build and Test (PR)
-on: [pull_request]
+name: Build and Test (Push)
+on: [push]
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        omp: [OFF, ON]
-        mpi: [OFF, ON]
+        omp: [ON]
+        mpi: [ON]
         compiler:
           [
-            "GCC 10",
-            "GCC 14",
-            "Clang 15",
-            "Clang 11",
+            "GCC 14"
           ]
     env:
       OMP_NUM_THREADS: 4
