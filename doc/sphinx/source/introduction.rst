@@ -1,11 +1,11 @@
-Introduction
+About Phoebe
 ============
 
 Phoebe is a software for the ab-initio prediction of transport properties, such as electron-phonon limited conductivity and phonon thermal conductivity.
 
-Currently, we support integration with the ab-initio software suite Quantum ESPRESSO for electron-phonon properties and anharmonic force constants through ShengBTE and Phono3py. 
+Currently, we support integration with the ab-initio software suite Quantum ESPRESSO for electron-phonon properties and anharmonic force constants through ShengBTE and Phono3py.
 
-Additionally, Phoebe is written in C++ and designed for use on modern HPC infrastructures through hybrid MPI/OpenMP parallelization, distributed memory computation via ScaLAPACK, and support for GPU acceleration using Kokkos.
+Phoebe is written in C++ and designed for use on modern HPC infrastructures through hybrid MPI/OpenMP parallelization, distributed memory computation via ScaLAPACK, and support for GPU acceleration using Kokkos.
 
 For more information, or to cite Phoebe, please refer to:
 
@@ -24,9 +24,9 @@ J. Phys. Mater. 5 035003. (2022).
 
 * BTE solutions by RTA, iterative, variational, and relaxon solvers
 
-* Electron-phonon transport via Wannier interpolation or EPA approximation
+* Electron-phonon transport via Wannier interpolation or the Electron-Phonon Averaged (EPA) approximation
 
-* Wigner transport equation correction for electrons and phonons 
+* Wigner transport equation correction for electrons and phonons
 
 * Calculation of electron and phonon lifetimes/linewidths (including projected onto a band path)
 
@@ -37,3 +37,15 @@ J. Phys. Mater. 5 035003. (2022).
 This documentation contains a brief description of the formalism used to compute these quantities. We expect that the user is already familiar with ab-initio codes and with the fundamentals of solid state physics. A good introduction to the topic is the book "Electrons and Phonons: The Theory of Transport Phenomena in Solids" by Ziman. In the theory section, we add references to contemporary literature for the latest method/algorithm developments.
 
 This guide will help you through code's installation, calculation of properties, descriptions of the code input files, postprocessing of results, and a theory handbook. A tutorials section will explain how to obtain the transport properties of Silicon. The Developer's documentation section contains a brief overview of the code structure, and is complemented with a detailed description of purpose and methods for each class.
+
+
+Contributors
+-------------
+
+The code is primarily maintained by Jenny Coulter (jcoulter@flatironinstitute.org).
+
+A number of different people have contributed to the code over time, including:
+
+**The original development team,** Andrea Cepellotti, Jennifer Coulter, Anders Johansson, Natalya Fedorova, Boris Kozinsky
+
+**as well as additional contributors,** Changpeng Lin, Michele Simoncelli, and Jackson Weaver.

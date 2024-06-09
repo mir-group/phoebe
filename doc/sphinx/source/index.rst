@@ -14,6 +14,8 @@ Welcome to Phoebe's documentation!
    postProcessing
    tutorials/tutorials
    theory/theory
+   faq
+   changelog
    Developers' documentation <_static/index.html#http://>
 
 Indices and tables
