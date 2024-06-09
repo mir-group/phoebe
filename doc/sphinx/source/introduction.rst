@@ -3,7 +3,7 @@ About Phoebe
 
 Phoebe is a software for the ab-initio prediction of transport properties, such as electron-phonon limited conductivity and phonon thermal conductivity.
 
-Currently, we support integration with the ab-initio software suite Quantum ESPRESSO for electron-phonon properties and anharmonic force constants through ShengBTE and Phono3py. 
+Currently, we support integration with the ab-initio software suite Quantum ESPRESSO for electron-phonon properties and anharmonic force constants through ShengBTE and Phono3py.
 
 Phoebe is written in C++ and designed for use on modern HPC infrastructures through hybrid MPI/OpenMP parallelization, distributed memory computation via ScaLAPACK, and support for GPU acceleration using Kokkos.
 
@@ -26,7 +26,7 @@ J. Phys. Mater. 5 035003. (2022).
 
 * Electron-phonon transport via Wannier interpolation or the Electron-Phonon Averaged (EPA) approximation
 
-* Wigner transport equation correction for electrons and phonons 
+* Wigner transport equation correction for electrons and phonons
 
 * Calculation of electron and phonon lifetimes/linewidths (including projected onto a band path)
 
@@ -40,12 +40,12 @@ This guide will help you through code's installation, calculation of properties,
 
 
 Contributors
-============
+-------------
 
-The code is primarily maintained by Jenny Coulter (jcoulter@flatironinstitute.org). 
+The code is primarily maintained by Jenny Coulter (jcoulter@flatironinstitute.org).
 
 A number of different people have contributed to the code over time, including:
 
-**The original development team,** Andrea Cepellotti, Jennifer Coulter, Anders Johansson, Natalya Fedorova, and Boris Kozinsky
- 
+**The original development team,** Andrea Cepellotti, Jennifer Coulter, Anders Johansson, Natalya Fedorova, Boris Kozinsky
+
 **as well as additional contributors,** Changpeng Lin, Michele Simoncelli, and Jackson Weaver.
