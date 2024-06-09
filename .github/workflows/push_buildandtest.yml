@@ -6,8 +6,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        omp: [ON]
-        mpi: [ON]
+        omp: [ON, OFF]
+        mpi: [ON, OFF]
         compiler:
           [
             "GCC 14"
