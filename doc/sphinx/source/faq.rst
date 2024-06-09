@@ -46,11 +46,13 @@ Tips for running Phoebe efficiently
 	* If using `srun`, slurm typically sets the binding options appropropriately and you will see the expected OMP speedup. 
 	* Regardless, you should do a few quick tests to ensure you're getting performance boosts as expected on your cluster, as OMP can make a big difference. 
 
-
 **For efficient transport calculations in general, using the following is beneficial**::
 
 	windowType = "population"
 	useSymmetries = true
+	windowPopulationLimit = 1e-10
+
+	* While the :ref:`windowPopulationLimit` variable is by default set to 1e-10, which should be a very safe value, in principle you may find you can reduce calculation cost by increasing this value -- however, you should be careful to test convergence against this parameter if you choose to do so. 
 
 	* However, there are two important caveats: 
 
