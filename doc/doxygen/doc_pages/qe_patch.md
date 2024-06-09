@@ -36,8 +36,6 @@ Two of these are easy:
 3. `elphon.f90` is a bigger modification, but not too difficult. The first time our subroutine `elphfil_phoebe` is called we analyze the symmetries of the q-point grid. This subroutine is called once for every q-point calculation. Next, we unfold the symmetries of the g coupling. Note that we also need to put it in a cartesian basis. Then, we write to file the quantity \f$ g(k,q^*) \f$, where k runs on the full grid of k-points, and \f$ q^* \f$ is the star of points that are symmetry equivalent to the current irreducible q point that is being computed. These output files are those that are passed as input to phoebe.
 
 
-
-
 @section CREATEPATCH Create+apply the patch
 
 **Code modifications**
