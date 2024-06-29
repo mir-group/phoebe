@@ -1,4 +1,4 @@
-FAQ and performance tips
+FAQ and Performance Tips
 ================================================
 
 Frequently asked questions 
@@ -28,6 +28,8 @@ Typically this can be resolved by a standardized representation of your crystal 
 Tips for running Phoebe efficiently
 -----------------------------------
 
+Phoebe is written to allow a number of options for improved computational performance. Below we list some ways you can reduce the cost of a calculation. 
+
 **Efficient choices in the DFT calculation:** 
 
 	* Try not to Wannierize more bands than necessary. While it is very important to have a high quality Wannierization with small spreads, Wannier interpolation involves matrix products with the unitary rotation matrices from the Wannier calculation. The number of bands in the Wannier interpolation can therefore make a big impact on the calculation cost. 
@@ -37,16 +39,15 @@ Tips for running Phoebe efficiently
 	One should review the notes about poolsize here: 
 	https://phoebe.readthedocs.io/en/develop/running.html#electron-phonon-parallelization
 
-	This allows the use to split up the electron phonon matrix elements over MPI processes, distributing them in memory rather than each process keeping a copy in memory. This will result in a moderate slowdown due to greater proccess communication during some parts of the code -- therefore, you should try to only use as many pools as you need, and not more. 
+	This allows the use to split up the electron phonon matrix elements over MPI processes, distributing them in memory rather than each process keeping a copy in memory. This will result in a slight slowdown due to greater proccess communication during some parts of the code -- therefore, you should try to only use as many pools as you need, and not more. 
 
-**Efficient use of OpenMP:** 
+**Efficient use of OpenMP and MPI:** 
 
-	* For most systems, Kokkos will throw a warning telling you to set:: 
+	* Phoebe contains extensive OMP parallelism, and in almost all cases, running your calculation as a hybrid MPI-OpenMP calculation will be beneficial. 
+	* For most systems, Kokkos will throw a warning telling you to set the following parameters, which can sometimes improve performance:: 
 
 		export OMP_PROC_BIND=spread
 		export OMP_PLACES=threads
-
-	This can lead to more efficient calculations in many cases. 
 
 	* On some systems, when using mpirun with Phoebe it's also important to include "--bind-to " in order for OMP parallelism to be used effectively, such as `mpirun -np 2 --bind-to none ...`. However, this can vary from system to system. 
 	* If using `srun`, slurm typically sets the binding options appropropriately and you will see the expected OMP speedup. 
@@ -58,11 +59,9 @@ Tips for running Phoebe efficiently
 	useSymmetries = true
 	windowPopulationLimit = 1e-10
 
-	* While the :ref:`windowPopulationLimit` variable is by default set to 1e-10, which should be a very safe value, in principle you may find you can reduce calculation cost by increasing this value -- however, you should be careful to test convergence against this parameter if you choose to do so. 
+* While the :ref:`windowPopulationLimit` variable is by default set to 1e-10, which should be a very safe value, in principle you may find you can reduce calculation cost by increasing this value -- however, you should be careful to test convergence against this parameter if you choose to do so. 
 
-	* However, there are two important caveats: 
-
-		* If you want to use the relaxons or variational solvers, you cannot use symmetries and this must be set to false. 
-
-		* If you are trying to use the electronic Wigner correction, then you also likely should not use the population window, but perhaps can use an energy window of ~1 eV around eFermi. See Cepellotti and Kozinsky, Materials Today Physics 19, 100412 Fig. 4 and the related discussion on this as to why this is needed -- if using this feature, we recommend you converge the calculation with respect to window size. 
+* However, there are two important caveats: 
+	* If you want to use the relaxons or variational solvers, you cannot use symmetries and this must be set to false. 
+	* If you are trying to use the electronic Wigner correction, then you also likely should not use the population window, but perhaps can use an energy window of ~1 eV around eFermi. See Cepellotti and Kozinsky, Materials Today Physics 19, 100412 Fig. 4 and the related discussion on this as to why this is needed -- if using this feature, we recommend you converge the calculation with respect to window size. 
 

@@ -9,10 +9,11 @@ Phoebe is written in C++ and designed for use on modern HPC infrastructures thro
 
 For more information, or to cite Phoebe, please refer to:
 
-Phoebe: a high-performance framework for solving phonon and electron Boltzmann transport equations.
-A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.
-J. Phys. Mater. 5 035003. (2022).
-`DOI:10.1088/2515-7639/ac86f6 <https://doi.org/10.1088/2515-7639/ac86f6>`_, `arXiv:2111.14999 <https://arxiv.org/abs/2111.14999>`_.
+| **Phoebe: a high-performance framework for solving phonon and electron Boltzmann transport equations.**  
+| A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.  
+| J. Phys. Mater. 5 035003. (2022).  
+| `DOI:10.1088/2515-7639/ac86f6 <https://doi.org/10.1088/2515-7639/ac86f6>`_
+| `arXiv:2111.14999 <https://arxiv.org/abs/2111.14999>`_
 
 .. raw:: html
 
@@ -42,10 +43,9 @@ This guide will help you through code's installation, calculation of properties,
 Contributors
 -------------
 
-The code is primarily maintained by Jenny Coulter (jcoulter@flatironinstitute.org).
-
 A number of different people have contributed to the code over time, including:
 
-**The original development team,** Andrea Cepellotti, Jennifer Coulter, Anders Johansson, Natalya Fedorova, Boris Kozinsky
+| **The original development team,** Andrea Cepellotti, Jenny Coulter, Anders Johansson, Natalya Fedorova, and Boris Kozinsky,
+| **as well as additional contributors,** Michele Simoncelli, Changpeng Lin, and Jackson Weaver.
 
-**as well as additional contributors,** Changpeng Lin, Michele Simoncelli, and Jackson Weaver.
+The code is primarily maintained by Jenny Coulter (jcoulter@flatironinstitute.org).

@@ -16,7 +16,7 @@ The installation requires the following packages are available:
 
 * CMake (a recent version)
 
-* A C++ compiler with C++17 support, whether GCC, Intel, or Clang
+* A C++ compiler with C++20 support, whether GCC, Intel, or Clang
 
 * MPI (although the code can compile without)
 
@@ -31,7 +31,7 @@ The installation requires the following packages are available:
 * An internet connection, to download external libraries
 
 
-Cmake build
+CMake build
 -----------
 
 Basic build
