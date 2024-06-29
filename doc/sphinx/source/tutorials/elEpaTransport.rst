@@ -133,11 +133,11 @@ If the code executes correctly and completely, you should see a number of files 
 Additionally, you should also see several files named ``{prefix}.phoebe.****.dat``, as many as the number of irreducible points.
 These files contain the electron-phonon coupling matrix elements to be used by Phoebe.
 
-**Current limitations:**
+**Notes:**
 
 * There are restrictions to the choice of k and q points.
   The ``K_POINTS`` in ``pw.x`` must be ``automatic``. The ``K_POINTS`` must be gamma centered.
-  And the q-point mesh must be the same as the k-point mesh.
+  And the q-point mesh must be commensurate with the k-point mesh.
 
 * In the current release, we don't support spin-polarized calculations or spin-orbit calculations. Support for this will come in a later release (we need to implement spin-related symmetries).
 

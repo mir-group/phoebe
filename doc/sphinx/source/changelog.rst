@@ -47,6 +47,7 @@ This was super slow, and should have been implemented using the ScaLAPACK pdtran
 * Switch to a stable branch of the Eigen repository (PR #203).
 * Viscosity outputs were previously incorrect due to two bugs. (PR #207)
 * Bugfix to isotope and boundary scattering terms. (PR #208)
+* Minor bugfix (making an energy cutoff 10x stricter) to account for possible divergence in the phononLifetimes app for generate states. 
 
 #### Interface changes: 
 * The requirement to use disp_phono3py.yaml with phono3py calculations is deprecated (supplying this file does nothing.) Now, only the `phonopy_disp.yaml` and `fc*.hdf5` files are required. (PR #140)

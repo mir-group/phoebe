@@ -11,7 +11,7 @@ jobs:
         compiler:
           [
             "GCC 10",
-            "GCC 13",
+            "GCC 14",
             "Clang 15",
             "Clang 11",
           ]

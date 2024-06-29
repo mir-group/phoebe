@@ -19,6 +19,12 @@ If the iterative solver, or especially the variational solver, does not converge
 	https://www.quantum-espresso.org/Doc/INPUT_MATDYN.html#idm17
 
 
+** I have encountered the error `Error in routine phoebe (1): atom mapping failed`` when running the `phoebe-quantum-espresso` version of `ph.x`. 
+
+This is a somewhat rare issue that emerges either because of a general issue with the crystal structure or because of a difference in how symmetries are used in the pw.x and ph.x calculations (often, it seems to appear when fractional translations are found in the sym ops list).
+Typically this can be resolved by a standardized representation of your crystal structure -- generated for example by running `AFLOW <http://www.aflowlib.org/aflow-online/>`_ on your structure, using the button for "structure conversion" and "standard primitive" (or any other equivalent utility.)
+
+
 Tips for running Phoebe efficiently
 -----------------------------------
 

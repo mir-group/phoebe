@@ -1151,7 +1151,7 @@ thickness
 constantRelaxationTime
 ^^^^^^^^^^^^^^^^^^^^^^
 
-* **Description:** If specified, we solve the BTE with the constant relaxation time approximation, where the electron or phonon lifetime is set to this input value. (Fast but inaccurate!)
+* **Description:** If specified, we solve the BTE with the constant relaxation time approximation, where the electron or phonon lifetime is set to this input value. (Fast but inaccurate, essentially only appropriate for the prediction of the Seebeck coeffient in materials where bandstructure effects dominate S!)
 
 * **Format:** *double+units*
 
