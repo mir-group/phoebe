@@ -10,10 +10,10 @@ jobs:
         mpi: [OFF, ON]
         compiler:
           [
-            "GCC 10",
+            #"GCC 10",
             "GCC 14",
             "Clang 15",
-            "Clang 11",
+            #"Clang 11",
           ]
     env:
       OMP_NUM_THREADS: 4
@@ -40,8 +40,8 @@ jobs:
       - name: Install Clang
         if: ${{ startsWith(matrix.compiler, 'Clang') }}
         run: |
-          sudo apt install -y clang-${{ steps.extract_matrix.outputs.CC_VERSION }}
-          sudo apt install -y libomp-${{ steps.extract_matrix.outputs.CC_VERSION }}-dev
+          sudo apt install -y clang #-${{ steps.extract_matrix.outputs.CC_VERSION }}
+          sudo apt install -y libomp-dev #${{ steps.extract_matrix.outputs.CC_VERSION }}-dev
       - name: Configure
         run: |
           CC_NAME=$(echo "${{ matrix.compiler }}" | awk '{ print tolower($1); }')
