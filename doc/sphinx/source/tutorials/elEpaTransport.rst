@@ -375,7 +375,7 @@ In this tutorial, we show a demo calculation, which is certainly unconverged. We
 Parallelization
 ---------------
 
-* **For the qeToPhoebeWannier app:** The electron-phonon coupling tensor may be very large, so that a single MPI process cannot store an entire copy of the tensor in its own memory.
+* **For the elPhQeToPhoebe app:** The electron-phonon coupling tensor may be very large, so that a single MPI process cannot store an entire copy of the tensor in its own memory.
 
   If this is the case, you can try setting the input variable :ref:`distributedElPhCoupling` = `"true"`: this will decrease the memory requirements of the calculation in exchange for a slower calculation, and will parallelize with MPI over the irreducible q-points.
 
