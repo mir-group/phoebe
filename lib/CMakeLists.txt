@@ -26,6 +26,7 @@ ExternalProject_Add(spglib_dep
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/spglib_build
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/spglib_src
     GIT_REPOSITORY https://github.com/spglib/spglib.git
+    GIT_TAG develop
     INSTALL_COMMAND ""
     UPDATE_COMMAND ""
     CMAKE_ARGS
