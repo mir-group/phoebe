@@ -1025,8 +1025,8 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
       }
     }
   }
-  return velocity;
   Kokkos::Profiling::popRegion();
+  return velocity;
 }
 
 Eigen::Vector3i PhononH0::getCoarseGrid() { return qCoarseGrid; }
