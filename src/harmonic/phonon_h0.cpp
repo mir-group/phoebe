@@ -892,6 +892,8 @@ PhononH0::diagonalizeVelocity(Point &point) {
   return diagonalizeVelocityFromCoordinates(coordinates);
 }
 
+// TODO I think it would be easier to 
+// apply these phases to the dynmat during the transform
 Eigen::Tensor<std::complex<double>, 3>
 PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
 
@@ -901,9 +903,6 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
   velocity.setZero();
 
   bool withMassScaling = false;
-    //for(int i = 0; i < 3; i++){
-    //  printf("old = %.16e\n", coordinates(i));
-    //}
 
   // get the eigenvectors and the energies of the q-point
   auto tup = diagonalizeFromCoordinates(coordinates, withMassScaling);
@@ -924,24 +923,17 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
   matrix_U_plus.setZero();
   matrix_U_minus.setZero();
 
-  //for(int i = 0; i < numBands; i++) printf("old = %.16e\n", energies(i));
-  //for(int i = 0; i < numBands; i++)
-  //  for(int j = 0; j < numBands; j++)
-  //    printf("old = %.16e %.16e\n", eigenvectors(i,j).real(), eigenvectors(i,j).imag());
-
   // now we compute the velocity operator
   double deltaQ = 1.0e-8;
+  // kx, ky, kz directions 
   for (int i : {0, 1, 2}) {
+
     // define q+ and q- from finite differences.
     Eigen::Vector3d qcenter = coordinates;
     Eigen::Vector3d qPlus = coordinates;
     Eigen::Vector3d qMinus = coordinates;
     qPlus(i) += deltaQ;
     qMinus(i) -= deltaQ;
-
-    //for(int i = 0; i < 3; i++){
-    //  printf("old = %.16e %.16e\n", qPlus(i), qMinus(i));
-    //}
 
     // diagonalize the dynamical matrix at q+ and q-
     auto tup2 = diagonalizeFromCoordinates(qPlus, withMassScaling);
@@ -950,31 +942,27 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
     auto tup1 = diagonalizeFromCoordinates(qMinus, withMassScaling);
     auto enMinus = std::get<0>(tup1);
     auto eigMinus = std::get<1>(tup1);
-    //for(int i = 0; i < numBands; i++) printf("old = %.16e\n", enPlus(i));
-    //for(int i = 0; i < numBands; i++) printf("old = %.16e\n", enMinus(i));
-    //for(int i = 0; i < numBands; i++)
 
-
+    // apply the Wallace phase 
     for (int iat = 0; iat < numAtoms; iat++){
       for (int i : {0, 1, 2}) {
-        auto ip= i + iat*3;
-        double arg= qcenter.dot(atomicPositions.row(iat));
-        matrix_U(ip)=exp(-complexI*arg);
-        arg= qPlus.dot(atomicPositions.row(iat));
-        matrix_U_plus(ip)=exp(-complexI*arg);
-        arg= qMinus.dot(atomicPositions.row(iat));
-        matrix_U_minus(ip)=exp(-complexI*arg);
+        auto ip = i + iat * 3;
+        double arg = qcenter.dot(atomicPositions.row(iat));
+        matrix_U(ip) = exp(-complexI*arg);
+        arg = qPlus.dot(atomicPositions.row(iat));
+        matrix_U_plus(ip) = exp(-complexI*arg);
+        arg = qMinus.dot(atomicPositions.row(iat));
+        matrix_U_minus(ip) = exp(-complexI*arg);
       }
     }
 
     for(int i = 0; i < numBands; i++){
       for(int j = 0; j < numBands; j++){
-        eigenvectors_bar(i,j)=matrix_U(i)*eigenvectors(i,j);
-        eigenvectors_bar_plus(i,j)=matrix_U_plus(i)*eigPlus(i,j);
-        eigenvectors_bar_minus(i,j)=matrix_U_minus(i)*eigMinus(i,j);
+        eigenvectors_bar(i,j) = matrix_U(i) * eigenvectors(i,j);
+        eigenvectors_bar_plus(i,j) = matrix_U_plus(i) * eigPlus(i,j);
+        eigenvectors_bar_minus(i,j) = matrix_U_minus(i) * eigMinus(i,j);
       }
     }
-
 
     // build diagonal matrices with frequencies
     Eigen::MatrixXd enPlusMat(numBands, numBands);
@@ -994,25 +982,6 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
     // now we can build the velocity operator
     Eigen::MatrixXcd der(numBands, numBands);
     der = (sqrtDPlus - sqrtDMinus) / (2. * deltaQ);
-
-    //for(int i = 0; i < numBands; i++){
-    //  for(int j = 0; j < numBands; j++){
-    //    auto x = der(i,j);
-    //    printf("old = %.16e %.16e\n", x.real(), x.imag());
-    //  }
-    //}
-    //for(int i = 0; i < numBands; i++){
-    //  for(int j = 0; j < numBands; j++){
-    //    auto x = sqrtDPlus(i,j);
-    //    printf("old = %.16e %.16e\n", x.real(), x.imag());
-    //  }
-    //}
-    //for(int i = 0; i < numBands; i++){
-    //  for(int j = 0; j < numBands; j++){
-    //    auto x = sqrtDMinus(i,j);
-    //    printf("old = %.16e %.16e\n", x.real(), x.imag());
-    //  }
-    //}
 
     // option below can probably be decommented, this will enforce hermiticity numerically, 
     // results should be equivalent within numerical noise
