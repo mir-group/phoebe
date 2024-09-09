@@ -12,7 +12,7 @@ filename: team
 
 <script type="text/javascript" src="https://platform.linkedin.com/badges/js/profile.js" async defer></script>
 
-<h3>Phoebe is maintained by Jenny Coulter, currently at the Flatiron Institute (CCQ), in collaboration with the Kozinsky group at Harvard University and the Simoncelli group at Columbia.</h3>
+<h3>Phoebe is maintained by Jenny Coulter, currently at the Flatiron Institute (CCQ), in collaboration with the Kozinsky group at Harvard University and the Simoncelli group at the University of Cambridge.</h3>
 
 <h3>Current Developers:</h3>
 
