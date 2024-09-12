@@ -1,19 +1,16 @@
-name: Build and Test (PR)
-on: [pull_request]
+name: Build and Test (Push)
+on: [push]
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        omp: [OFF, ON]
-        mpi: [OFF, ON]
+        omp: [ON, OFF]
+        mpi: [ON, OFF]
         compiler:
           [
-            #"GCC 10",
-            "GCC 14",
-            "Clang 15",
-            #"Clang 11",
+            "GCC 14"
           ]
     env:
       OMP_NUM_THREADS: 4
@@ -40,8 +37,8 @@ jobs:
       - name: Install Clang
         if: ${{ startsWith(matrix.compiler, 'Clang') }}
         run: |
-          sudo apt install -y clang #-${{ steps.extract_matrix.outputs.CC_VERSION }}
-          sudo apt install -y libomp-dev #${{ steps.extract_matrix.outputs.CC_VERSION }}-dev
+          sudo apt install -y clang-${{ steps.extract_matrix.outputs.CC_VERSION }}
+          sudo apt install -y libomp-${{ steps.extract_matrix.outputs.CC_VERSION }}-dev
       - name: Configure
         run: |
           CC_NAME=$(echo "${{ matrix.compiler }}" | awk '{ print tolower($1); }')
@@ -58,7 +55,7 @@ jobs:
           cd build
           ./runTests
       - name: Download test data
-        if: ${{ matrix.compiler == 'GCC 14' }}
+        if: ${{ matrix.compiler == 'GCC 10' }}
         run: |
           wget github.com/mir-group/phoebe-data/archive/master.zip
           unzip -j master.zip "phoebe-data-master/example/Silicon-ph/qe-phonons/*" -d "example/Silicon-ph/qe-phonons"
@@ -69,7 +66,7 @@ jobs:
           mkdir example/Silicon-epa/qe-elph/out
           unzip -j master.zip "phoebe-data-master/example/Silicon-epa/qe-elph/out/*" -d "example/Silicon-epa/qe-elph/out"
       - name: Run epa example without MPI
-        if: ${{ matrix.compiler == 'GCC 14' }}
+        if: ${{ matrix.compiler == 'GCC 10' }}
         working-directory: example/Silicon-epa
         run: |
           ../../build/phoebe -in qeToPhoebeEPA.in
@@ -78,7 +75,7 @@ jobs:
           ../../build/phoebe -in electronFourierDos.in
           python3 reference/run_check.py
       - name: Run epa example with MPI
-        if: ${{ matrix.compiler == 'GCC 14' && matrix.mpi == 'ON'}}
+        if: ${{ matrix.compiler == 'GCC 10' && matrix.mpi == 'ON'}}
         working-directory: example/Silicon-epa
         run: |
           mpirun -np 4 --oversubscribe ../../build/phoebe -in epaTransport.in
@@ -86,7 +83,7 @@ jobs:
           mpirun -np 4 --oversubscribe ../../build/phoebe -in electronFourierDos.in
           python3 reference/run_check.py
       - name: Run ph example without MPI
-        if: ${{ matrix.compiler == 'GCC 14' }}
+        if: ${{ matrix.compiler == 'GCC 10' }}
         working-directory: example/Silicon-ph
         run: |
           ../../build/phoebe -in phononTransport.in
@@ -95,7 +92,7 @@ jobs:
           ../../build/phoebe -in phononLifetimes.in
           python3 reference/run_check.py
       - name: Run ph example with MPI
-        if: ${{ matrix.compiler == 'GCC 14' && matrix.mpi == 'ON' }}
+        if: ${{ matrix.compiler == 'GCC 10' && matrix.mpi == 'ON' }}
         working-directory: example/Silicon-ph
         run: |
           mpirun -np 4 --oversubscribe ../../build/phoebe -in phononTransport.in
@@ -104,7 +101,7 @@ jobs:
           mpirun -np 4 --oversubscribe ../../build/phoebe -in phononLifetimes.in
           python3 reference/run_check.py
       - name: Run el example without MPI
-        if: ${{ matrix.compiler == 'GCC 14' }}
+        if: ${{ matrix.compiler == 'GCC 10' }}
         working-directory: example/Silicon-el
         run: |
           ../../build/phoebe -in qeToPhoebeWannier.in
@@ -114,7 +111,7 @@ jobs:
           ../../build/phoebe -in electronLifetimes.in
           python3 reference/run_check.py
       - name: Run el example with MPI
-        if: ${{ matrix.compiler == 'GCC 14' && matrix.mpi == 'ON' }}
+        if: ${{ matrix.compiler == 'GCC 10' && matrix.mpi == 'ON' }}
         working-directory: example/Silicon-el
         run: |
           # Note: don't run this as it runs out-of-memory on the VM
