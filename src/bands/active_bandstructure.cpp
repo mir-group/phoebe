@@ -65,8 +65,25 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   hasEigenvectors = withEigenvectors;
 
   energies.resize(numPoints * numFullBands, 0.);
-  if(withVelocities) velocities.resize(numPoints * numFullBands * numFullBands * 3, complexZero);
-  if(withEigenvectors) eigenvectors.resize(numPoints * numFullBands * numFullBands, complexZero);
+
+  if (withVelocities) {
+    try {
+      size_t size = size_t(numPoints) * size_t(numFullBands) * size_t(numFullBands) * size_t(3);
+      velocities.resize(size);
+    } catch(std::length_error &) {
+      Error("Failed to allocate band structure velocities.\n"
+        "You are exceeding the number of states which can be stored as an integer value.");
+    }
+  }
+  if (withEigenvectors) {
+    try {
+      size_t size = size_t(numPoints) * size_t(numFullBands) * size_t(numFullBands);
+      eigenvectors.resize(size);
+    } catch(std::length_error &) {
+      Error("Failed to allocate band structure eignevectors.\n"
+        "You are exceeding the number of states which can be stored as an integer value.");
+    }
+  }
 
   windowMethod = Window::nothing;
   buildIndices();
