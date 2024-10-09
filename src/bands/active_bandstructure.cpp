@@ -70,18 +70,18 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
     try {
       size_t size = size_t(numPoints) * size_t(numFullBands) * size_t(numFullBands) * size_t(3);
       velocities.resize(size);
-    } catch(std::length_error &) {
+    } catch(std::bad_alloc &) {
       Error("Failed to allocate band structure velocities.\n"
-        "You are exceeding the number of states which can be stored as an integer value.");
+        "You are likely running out of memory.");
     }
   }
   if (withEigenvectors) {
     try {
       size_t size = size_t(numPoints) * size_t(numFullBands) * size_t(numFullBands);
       eigenvectors.resize(size);
-    } catch(std::length_error &) {
+    } catch(std::bad_alloc &) {
       Error("Failed to allocate band structure eignevectors.\n"
-        "You are exceeding the number of states which can be stored as an integer value.");
+        "You are likely running out of memory.");
     }
   }
 
