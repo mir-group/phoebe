@@ -111,6 +111,12 @@ class BaseBandStructure {
   virtual const double &getEnergy(StateIndex &is) = 0;
   virtual Eigen::VectorXd getEnergies(WavevectorIndex &ik) = 0;
 
+  /** Return the maximum energy of a bandstructure.
+  * Used when ph energy maximum is a cutoff for phel scattering.
+  * @return maxEnergy: maximum energy value of bandstructure in Ry
+  */
+  virtual double getMaxEnergy() = 0;
+
   /** Returns the energy of a quasiparticle from its Bloch index
    * Used for accessing the band structure in the BTE.
    * @param stateIndex: an integer index in range [0,numStates[
@@ -447,6 +453,12 @@ class FullBandStructure : public BaseBandStructure {
    */
   Eigen::VectorXd getEnergies(WavevectorIndex &ik) override;
 
+  /** Return the maximum energy of a bandstructure.
+  * Used when ph energy maximum is a cutoff for phel scattering.
+  * @return maxEnergy: maximum energy value of bandstructure in Ry
+  */
+  double getMaxEnergy() override;
+
   /** Returns the group velocity of a quasiparticle from its Bloch index.
    * Used for accessing the band structure in the BTE.
    * @param stateIndex: a StateIndex(is) object where 'is' is an integer index
@@ -675,7 +687,7 @@ protected:
   bool hasVelocities = false;
 
   // matrices storing the raw data
-  Matrix<double> energies;       // size(bands,points)
+  Matrix<double> energies;                    // size(bands,points)
   Matrix<std::complex<double>> velocities;    // size(3*bands^2,points)
   Matrix<std::complex<double>> eigenvectors;  // size(bands^2,points)
 

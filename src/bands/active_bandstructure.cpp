@@ -64,7 +64,7 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   numStates = numFullBands * numPoints;
   hasEigenvectors = withEigenvectors;
 
-  energies.resize(numPoints * numFullBands, 0.);
+  energies.resize(size_t(numPoints) * size_t(numFullBands), 0.);
 
   if (withVelocities) {
     try {
@@ -669,10 +669,10 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   // this isn't a constant number.
   // Also, we look for the size of the arrays containing band structure.
   numBands = Eigen::VectorXi::Zero(numPoints);
-  int numEnStates = 0;
-  int numVelStates = 0;
-  int numEigStates = 0;
-  for (int ik = 0; ik < numPoints; ik++) {
+  size_t numEnStates = 0;
+  size_t numVelStates = 0;
+  size_t numEigStates = 0;
+  for (size_t ik = 0; ik < numPoints; ik++) {
     numBands(ik) = filteredBands(ik, 1) - filteredBands(ik, 0) + 1;
     numEnStates += numBands(ik);
     numVelStates += 3 * numBands(ik) * numBands(ik);
@@ -962,9 +962,9 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // this isn't a constant number.
   // Also, we look for the size of the arrays containing band structure.
   numBands = Eigen::VectorXi::Zero(numPoints);
-  int numEnStates = 0;
-  int numVelStates = 0;
-  int numEigStates = 0;
+  size_t numEnStates = 0;
+  size_t numVelStates = 0;
+  size_t numEigStates = 0;
   for (int ik = 0; ik < numPoints; ik++) {
     numBands(ik) = filteredBands(ik, 1) - filteredBands(ik, 0) + 1;
     numEnStates += numBands(ik);
