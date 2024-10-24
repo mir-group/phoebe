@@ -18,8 +18,8 @@
 PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
                    const Eigen::Tensor<double, 3> &bornCharges_,
                    Eigen::Tensor<double, 7> &forceConstants_,
-                   const std::string &sumRule)
-    : particle(Particle::phonon), crystal(crystal) {
+                   const std::string &sumRule, const int fcRangeType) 
+    : particle(Particle::phonon), crystal(crystal), fcRangeType(fcRangeType) {
   // in this section, we save as class properties a few variables
   // that are needed for the diagonalization of phonon frequencies
 
@@ -52,13 +52,14 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
   setAcousticSumRule(sumRule, forceConstants_);
 
   reorderDynamicalMatrix(directUnitCell, forceConstants_);
+  alat = sqrt(directUnitCell(0,0)*directUnitCell(0,0) + directUnitCell(1,0)*directUnitCell(1,0) + directUnitCell(2,0)*directUnitCell(2,0));
+  alpha = (twoPi/alat * twoPi/alat);
+  double inv4Alpha = 1./(alpha * 4.);
+  double fourAlphaGMax = 4. * alpha * gMax;
 
   if (hasDielectric) { // prebuild terms useful for long range corrections
 
-    // TODO this is important for 3d materials, though I'm not sure about 2D ones
-    //dielectricMatrix = dielectricMatrix * 0.5;
-
-    double cutoff = gMax * 4.;
+    double cutoff = gMax * 4. * alpha; // Gmax is the cutoff for the Ewald sum
 
     // Estimate of nr1x,nr2x,nr3x generating all vectors up to G^2 < geg
     // Only for dimensions where periodicity is present, e.g. if nr1=1
@@ -81,12 +82,15 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
     double norm;
     Eigen::Matrix3d reff;
     if(dimensionality == 2 && longRange2d) {
-      norm = e2 * twoPi / volumeUnitCell;  // originally
+      // TODO there could be an issue here -- may need a
+      // factor of 2 or 4, as QE has some unexpected factors on the
+      // 3d polar correction
+      norm = twoPi / volumeUnitCell;  // originally
       // (e^2 * 2\pi) / Area
-      // fac = (sign * e2 * tpi) / (omega * bg(3, 3) / alat)
+      // fac = (sign * tpi) / (omega * bg(3, 3) / alat)
       reff = dielectricMatrix * 0.5 * directUnitCell(2,2);
     } else {
-      norm = e2 * fourPi / volumeUnitCell;
+      norm = 4 * fourPi / volumeUnitCell;
     }
 
     int numG = (2*nr1x+1) * (2*nr2x+1) * (2*nr3x+1);
@@ -124,16 +128,17 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
         geg = (g.transpose() * dielectricMatrix * g).value();
       }
 
-      if (0. < geg && geg < 4. * gMax) {
+      // exclude G = 0
+      if (0. < geg && geg < fourAlphaGMax) {
         double normG;
 
-        if(dimensionality == 2 && longRange2d) {
-          normG = norm * exp(-g.norm() * 0.25) / sqrt(g.norm()) * (1.0 + geg * sqrt(g.norm()));
-        } else {
-          normG = norm * exp(-geg * 0.25) / geg;
-        }
+        //if(dimensionality == 2 && longRange2d) {
+        //  normG = norm * exp(-g.norm() * 0.25) / sqrt(g.norm()) * (1.0 + geg * sqrt(g.norm()));
+        //} else {
+        normG = norm * exp(-geg * inv4Alpha) / geg; // facgd
+        //}
 
-        Eigen::MatrixXd gZ(3, numAtoms);
+        Eigen::MatrixXd gZ(3, numAtoms); // in QE rgd_blk, this is called zag and zcg
         for (int na = 0; na < numAtoms; na++) {
           for (int i : {0, 1, 2}) {
             gZ(i, na) = g(0) * bornCharges(na, 0, i) + g(1) * bornCharges(na, 1, i) + g(2) * bornCharges(na, 2, i);
@@ -197,10 +202,12 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
         bravaisVectors_h(iR, i) = bravaisVectors(i, iR);
       }
     }
+
     Kokkos::deep_copy(atomicMasses_d, atomicMasses_h);
     Kokkos::deep_copy(bravaisVectors_d, bravaisVectors_h);
     Kokkos::deep_copy(weights_d, weights_h);
     Kokkos::deep_copy(mat2R_d, mat2R_h);
+
     if (hasDielectric) {
       Kokkos::resize(longRangeCorrection1_d, 3, 3, numAtoms);
       Kokkos::resize(gVectors_d, numG, 3);
@@ -244,17 +251,21 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
     double mem = getDeviceMemoryUsage();
     kokkosDeviceMemory->addDeviceMemoryUsage(mem);
   }
-  Kokkos::Profiling::popRegion();
+  Kokkos::Profiling::popRegion(); // end ph h0 constrcutor
 }
 
 // copy constructor
 PhononH0::PhononH0(const PhononH0 &that)
-    : particle(that.particle), hasDielectric(that.hasDielectric),
-      numAtoms(that.numAtoms), numBands(that.numBands), crystal(that.crystal),
+    : particle(that.particle), crystal(that.crystal), hasDielectric(that.hasDielectric),
+      numAtoms(that.numAtoms), numBands(that.numBands),
+      alpha(that.alpha), alat(that.alat),
       volumeUnitCell(that.volumeUnitCell), atomicSpecies(that.atomicSpecies),
       speciesMasses(that.speciesMasses), atomicPositions(that.atomicPositions),
       dielectricMatrix(that.dielectricMatrix), bornCharges(that.bornCharges),
       qCoarseGrid(that.qCoarseGrid),
+      directUnitCell(that.directUnitCell),
+      dimensionality(that.dimensionality),
+      fcRangeType(that.fcRangeType),
       numBravaisVectors(that.numBravaisVectors),
       bravaisVectors(that.bravaisVectors), weights(that.weights),
       mat2R(that.mat2R), gVectors(that.gVectors),
@@ -268,13 +279,14 @@ PhononH0::PhononH0(const PhononH0 &that)
       bravaisVectors_d(that.bravaisVectors_d),
       weights_d(that.weights_d),
       mat2R_d(that.mat2R_d) {
-  double memory = getDeviceMemoryUsage();
-  kokkosDeviceMemory->addDeviceMemoryUsage(memory);
+      double memory = getDeviceMemoryUsage();
+      kokkosDeviceMemory->addDeviceMemoryUsage(memory);
 }
 
 // copy assignment
 PhononH0 &PhononH0::operator=(const PhononH0 &that) {
   if (this != &that) {
+    crystal = that.crystal;
     particle = that.particle;
     hasDielectric = that.hasDielectric;
     numAtoms = that.numAtoms;
@@ -287,6 +299,11 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     dielectricMatrix = that.dielectricMatrix;
     bornCharges = that.bornCharges;
     qCoarseGrid = that.qCoarseGrid;
+    directUnitCell = that.directUnitCell;
+    dimensionality = that.dimensionality;
+    fcRangeType = that.fcRangeType;
+    alat = that.alat;
+    alpha = that.alpha;
     numBravaisVectors = that.numBravaisVectors;
     bravaisVectors = that.bravaisVectors;
     weights = that.weights;
@@ -356,12 +373,18 @@ PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q,
 
   // then the long range term, which uses some convergence
   // tricks by X. Gonze et al.
-  if (hasDielectric) {
+  if (hasDielectric && fcRangeType == shortRange) {
     addLongRangeTerm(dyn, q);
+  }
+  // medium range forces are those which are from finite differences
+  // these need a correction as in the Wang 2012 paper
+  //    std::cout << "call medium range " << fcRangeType << std::endl;
+
+  if (hasDielectric && fcRangeType == mediumRange) {
+    addMediumRangeTerm(dyn, q);
   }
 
   // once everything is ready, here we scale by masses and diagonalize
-
   auto tup = dynDiagonalize(dyn);
   auto energies = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
@@ -390,11 +413,11 @@ FullBandStructure PhononH0::populate(Points &points,
                                      const bool &withVelocities,
                                      const bool &withEigenvectors,
                                      const bool isDistributed) {
-  return kokkosPopulate(points, withVelocities, withEigenvectors, isDistributed);
+  return cpuPopulate(points, withVelocities, withEigenvectors, isDistributed);
 }
 
-FullBandStructure PhononH0::cpuPopulate(Points &points, bool &withVelocities,
-                                        bool &withEigenvectors,
+FullBandStructure PhononH0::cpuPopulate(Points &points, const bool &withVelocities,
+                                        const bool &withEigenvectors,
                                         bool isDistributed) {
   FullBandStructure fullBandStructure(numBands, particle, withVelocities,
                                       withEigenvectors, points, isDistributed);
@@ -536,6 +559,10 @@ double PhononH0::wsWeight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws) 
 
 void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                                 const Eigen::VectorXd &q) {
+
+  double inv4Alpha = 1./(alpha * 4.);
+  double fourAlphaGMax = 4. * alpha * gMax; 
+
   // this subroutine is the analogous of rgd_blk in QE
   // compute the rigid-ion (long-range) term for q
   // The long-range term used here, to be added to or subtracted from the
@@ -548,7 +575,7 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
   //   real(DP) &
   //        q(3),           &! q-vector
 
-  // alpha, implicitly set to 1, is the Ewald parameter,
+  // alpha, set to (2pi/alat)^2, is the Ewald parameter,
   // geg is an estimate of G^2 such that the G-space sum is convergent for alpha
   // very rough estimate: geg/4/alpha > gMax = 14
   // (exp (-14) = 10^-6)
@@ -595,9 +622,6 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
           ENDDO ! nb
  */
 
-
-
-
   for (int na = 0; na < numAtoms; na++) {
     for (int j : {0, 1, 2}) {
       for (int i : {0, 1, 2}) {
@@ -614,7 +638,7 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
     // fac = (sign * e2 * tpi) / (omega * bg(3, 3) / alat)
     reff = dielectricMatrix * 0.5 * directUnitCell(2,2);
   } else {
-    norm = e2 * fourPi / volumeUnitCell;
+    norm = 4 * fourPi / volumeUnitCell;
   }
 
   for (int ig=0; ig<gVectors.cols(); ++ig) {
@@ -629,13 +653,13 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
         geg = (gq.transpose() * dielectricMatrix * gq).value();
       }
 
-    if (geg > 0. && geg < 4. * gMax) {
+    if (geg > 0. && geg < fourAlphaGMax ) {
       double normG;
-      if(dimensionality == 2 && longRange2d) { // TODO check if norm is squared
-        normG = norm * exp(-gq.norm() * 0.25) / sqrt(gq.norm()) * (1.0 + geg * sqrt(gq.norm()));
-      } else {
-        normG = norm * exp(-geg * 0.25) / geg;
-      }
+      //if(dimensionality == 2 && longRange2d) { // TODO check if norm is squared
+      //  normG = norm * exp(-gq.norm() * 0.25 / alpha ) / sqrt(gq.norm()) * (1.0 + geg * sqrt(gq.norm()));
+      //} else {
+        normG = norm * exp(-geg * inv4Alpha) / geg;
+      //}
 
       Eigen::MatrixXd gqZ(3, numAtoms);
       for (int i : {0, 1, 2}) {
@@ -666,7 +690,7 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
       }
     }
   }
-  Kokkos::Profiling::popRegion();
+  Kokkos::Profiling::popRegion(); // end long range
 }
 
 void PhononH0::reorderDynamicalMatrix(const Eigen::Matrix3d& directUnitCell,
@@ -774,7 +798,7 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                               const Eigen::VectorXd &q) {
 
   // calculates the dynamical matrix at q from the (short-range part of the)
-  // force constants21, by doing the Fourier transform of the force constants
+  // force constants, by doing the Fourier transform of the force constants
 
   Kokkos::Profiling::pushRegion("phononH0.shortRangeTerm");
 
@@ -783,9 +807,13 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
     Eigen::Vector3d r = bravaisVectors.col(iR);
     double arg = q.dot(r);
     phases[iR] = exp(-complexI * arg); // {cos(arg), -sin(arg)};
-    //printf("old = %.16e %.16e\n", phases[iR].real(), phases[iR].imag());
-    //for(int i = 0; i < 3; i++)
-    //  printf("old = %.16e\n", r[i]);
+  }
+
+  // this is only for medium range force constants 
+  Eigen::Tensor<double, 4> fq(3,3,numAtoms,numAtoms);
+  fq.setZero();
+  if(hasDielectric && fcRangeType == mediumRange) {
+    correctMediumRangeIFCs(fq,q); 
   }
 
   for (int iR = 0; iR < numBravaisVectors; iR++) {
@@ -794,26 +822,18 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
         for (int j : {0, 1, 2}) {
           for (int i : {0, 1, 2}) {
             dyn(i, j, na, nb) +=
-                mat2R(i, j, na, nb, iR) * phases[iR] * weights(iR);
+                (mat2R(i, j, na, nb, iR) + fq(i,j,na,nb)) * phases[iR] * weights(iR);
           }
         }
       }
     }
   }
-    //for (int nb = 0; nb < numAtoms; nb++) {
-    //  for (int na = 0; na < numAtoms; na++) {
-    //    for (int j : {0, 1, 2}) {
-    //      for (int i : {0, 1, 2}) {
-    //        printf("old = %.16e %.16e\n", dyn(i,j,na,nb).real(), dyn(i,j,na,nb).imag());
-    //      }
-    //    }
-    //  }
-    //}
-  Kokkos::Profiling::popRegion();
+  Kokkos::Profiling::popRegion();  // short range term
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 PhononH0::dynDiagonalize(Eigen::Tensor<std::complex<double>, 4> &dyn) {
+
   // diagonalise the dynamical matrix
   // On input:  speciesMasses = masses, in amu
   // On output: w2 = energies, z = displacements
@@ -821,7 +841,6 @@ PhononH0::dynDiagonalize(Eigen::Tensor<std::complex<double>, 4> &dyn) {
   Kokkos::Profiling::pushRegion("PhononH0::dynDiagonalize");
 
   // fill the two-indices dynamical matrix
-
   Eigen::MatrixXcd dyn2Tmp(numBands, numBands);
   for (int jat = 0; jat < numAtoms; jat++) {
     for (int iat = 0; iat < numAtoms; iat++) {
@@ -834,13 +853,11 @@ PhononH0::dynDiagonalize(Eigen::Tensor<std::complex<double>, 4> &dyn) {
   }
 
   // impose hermiticity
-
   Eigen::MatrixXcd dyn2(numBands, numBands);
   dyn2 = dyn2Tmp + dyn2Tmp.adjoint();
   dyn2 *= 0.5;
 
   //  divide by the square root of masses
-
   for (int jat = 0; jat < numAtoms; jat++) {
     int jType = atomicSpecies(jat);
     for (int j : {0, 1, 2}) {
@@ -853,12 +870,6 @@ PhononH0::dynDiagonalize(Eigen::Tensor<std::complex<double>, 4> &dyn) {
       }
     }
   }
-  //for(int i = 0; i < 3*numAtoms; i++){
-  //  for(int j = 0; j < 3*numAtoms; j++){
-  //    auto x = dyn2(i,j);
-  //    printf("old = %.16e %.16e\n", x.real(), x.imag());
-  //  }
-  //}
 
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(dyn2);
   Eigen::VectorXd w2 = eigenSolver.eigenvalues();
@@ -870,18 +881,10 @@ PhononH0::dynDiagonalize(Eigen::Tensor<std::complex<double>, 4> &dyn) {
     } else {
       energies(i) = sqrt(w2(i));
     }
-    //printf("old = %.16e\n", energies(i));
   }
   Eigen::MatrixXcd eigenvectors = eigenSolver.eigenvectors();
-  //eigenvectors = 3*dyn2; // TODO: undo
 
-  //for(int i = 0; i < 3*numAtoms; i++){
-  //  for(int j = 0; j < 3*numAtoms; j++){
-  //    auto x = eigenvectors(i,j);
-  //    printf("old = %.16e %.16e\n", x.real(), x.imag());
-  //  }
-  //}
-  Kokkos::Profiling::popRegion();
+  Kokkos::Profiling::popRegion(); // end of dyn diag
   return std::make_tuple(energies, eigenvectors);
 }
 
@@ -901,19 +904,11 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
   velocity.setZero();
 
   bool withMassScaling = false;
-    //for(int i = 0; i < 3; i++){
-    //  printf("old = %.16e\n", coordinates(i));
-    //}
 
   // get the eigenvectors and the energies of the q-point
   auto tup = diagonalizeFromCoordinates(coordinates, withMassScaling);
   auto energies = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
-
-  //for(int i = 0; i < numBands; i++) printf("old = %.16e\n", energies(i));
-  //for(int i = 0; i < numBands; i++)
-  //  for(int j = 0; j < numBands; j++)
-  //    printf("old = %.16e %.16e\n", eigenvectors(i,j).real(), eigenvectors(i,j).imag());
 
   // now we compute the velocity operator, diagonalizing the expectation
   // value of the derivative of the dynamical matrix.
@@ -926,10 +921,6 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
     qPlus(i) += deltaQ;
     qMinus(i) -= deltaQ;
 
-    //for(int i = 0; i < 3; i++){
-    //  printf("old = %.16e %.16e\n", qPlus(i), qMinus(i));
-    //}
-
     // diagonalize the dynamical matrix at q+ and q-
     auto tup2 = diagonalizeFromCoordinates(qPlus, withMassScaling);
     auto enPlus = std::get<0>(tup2);
@@ -937,14 +928,6 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
     auto tup1 = diagonalizeFromCoordinates(qMinus, withMassScaling);
     auto enMinus = std::get<0>(tup1);
     auto eigMinus = std::get<1>(tup1);
-    //for(int i = 0; i < numBands; i++) printf("old = %.16e\n", enPlus(i));
-    //for(int i = 0; i < numBands; i++) printf("old = %.16e\n", enMinus(i));
-    //for(int i = 0; i < numBands; i++)
-    //  for(int j = 0; j < numBands; j++)
-    //    printf("old = %.16e %.16e\n", eigPlus(i,j).real(), eigPlus(i,j).imag());
-    //for(int i = 0; i < numBands; i++)
-    //  for(int j = 0; j < numBands; j++)
-    //    printf("old = %.16e %.16e\n", eigMinus(i,j).real(), eigMinus(i,j).imag());
 
     // build diagonal matrices with frequencies
     Eigen::MatrixXd enPlusMat(numBands, numBands);
@@ -965,36 +948,16 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
     Eigen::MatrixXcd der(numBands, numBands);
     der = (sqrtDPlus - sqrtDMinus) / (2. * deltaQ);
 
-    //for(int i = 0; i < numBands; i++){
-    //  for(int j = 0; j < numBands; j++){
-    //    auto x = der(i,j);
-    //    printf("old = %.16e %.16e\n", x.real(), x.imag());
-    //  }
-    //}
-    //for(int i = 0; i < numBands; i++){
-    //  for(int j = 0; j < numBands; j++){
-    //    auto x = sqrtDPlus(i,j);
-    //    printf("old = %.16e %.16e\n", x.real(), x.imag());
-    //  }
-    //}
-    //for(int i = 0; i < numBands; i++){
-    //  for(int j = 0; j < numBands; j++){
-    //    auto x = sqrtDMinus(i,j);
-    //    printf("old = %.16e %.16e\n", x.real(), x.imag());
-    //  }
-    //}
-
     // and to be safe, we reimpose hermiticity
     der = 0.5 * (der + der.adjoint());
 
     // now we rotate in the basis of the eigenvectors at q.
     der = eigenvectors.adjoint() * der * eigenvectors;
 
+    // copy to output
     for (int ib2 = 0; ib2 < numBands; ib2++) {
       for (int ib1 = 0; ib1 < numBands; ib1++) {
         velocity(ib1, ib2, i) = der(ib1, ib2);
-        //auto x = velocity(ib1,ib2,i);
-        //printf("old = %.16e %.16e\n", x.real(), x.imag());
       }
     }
   }
@@ -1057,15 +1020,7 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
   if (coordinates.norm() < 1.0e-6) {
     velocity.setZero();
   }
-  //for(int i = 0; i < 3; i++){
-  //  for (int ib2 = 0; ib2 < numBands; ib2++) {
-  //    for (int ib1 = 0; ib1 < numBands; ib1++) {
-  //      auto x = velocity(ib1,ib2,i);
-  //      printf("old = %.16e %.16e\n", x.real(), x.imag());
-  //    }
-  //  }
-  //}
-  Kokkos::Profiling::popRegion();
+  Kokkos::Profiling::popRegion(); // diagonalizeVelocityFromCoordinates
   return velocity;
 }
 
@@ -1099,8 +1054,14 @@ void PhononH0::printDynToHDF5(Eigen::Vector3d& qCrys) {
 
   // then the long range term, which uses some convergence
   // tricks by X. Gonze et al.
-  if (hasDielectric) {
+  if (hasDielectric && fcRangeType == shortRange) {
     addLongRangeTerm(dyn, qCart);
+  }
+
+  // medium range forces are those which are from finite differences
+  // these need a correction as in the Wang 2012 paper
+  if (hasDielectric && fcRangeType == mediumRange) {
+    addMediumRangeTerm(dyn, qCart);
   }
 
   // the contents can be written to file like this
@@ -1150,4 +1111,88 @@ void PhononH0::printDynToHDF5(Eigen::Vector3d& qCrys) {
     Error("One needs to build with HDF5 to write the dynamical matrix to file!");
   #endif
 
+}
+
+void PhononH0::correctMediumRangeIFCs(Eigen::Tensor<double, 4> &fq, const Eigen::VectorXd &q) {
+
+  // this is a contribution that needs to be added to the IFCS for each qpt
+  // we don't want to modify the stored IFCs, so we are simply going to 
+  // return the contribution. 
+  // TODO is is more efficient to do this for a batch of q?   
+
+  Kokkos::Profiling::pushRegion("phononH0 medium range IFCs");
+
+/*         Eigen::Vector3d qhat;
+          double qq= q.norm();
+          if(abs(qq) < 1e-8) qq=1.0;
+          qhat(0)=q(0)/qq;
+          qhat(1)=q(1)/qq;
+          qhat(2)=q(2)/qq;
+          //q = qhat;  */
+
+  // do not run this on the gamma point 
+  if( abs(q.norm()) < 1e-6 ) { return; } 
+
+  double qeq = (qhat.transpose() * dielectricMatrix * qhat).value();
+  double norm = fourPi / (qeq) / volumeUnitCell / (qCoarseGrid(0)*qCoarseGrid(1)*qCoarseGrid(2));
+
+  Eigen::MatrixXd qZ(3, numAtoms); // in QE rgd_blk, this is called zag and zbg
+  for (int na = 0; na < numAtoms; na++) {
+    for (int i : {0, 1, 2}) {
+      qZ(i, na) = qhat(0) * bornCharges(na, 0, i) + qhat(1) * bornCharges(na, 1, i) + qhat(2) * bornCharges(na, 2, i);
+    }
+  }
+
+  // TODO can we OMP this? is it worth it? 
+  for (int na = 0; na < numAtoms; ++na) {
+    for (int nb = 0; nb < numAtoms; ++nb) {
+      for (auto i : {0,1,2}) {
+        for (auto j : {0,1,2}) {
+          fq(i,j,na,nb) = qZ(i,na) * qZ(j,nb) * norm;
+        }
+      }
+    } 
+  }
+  Kokkos::Profiling::popRegion(); // end ph h0 constrcutor
+}
+
+void PhononH0::addMediumRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
+                                                      const Eigen::VectorXd &q) {
+
+  // do not run this on the gamma point 
+  if( abs(q.norm()) < 1e-6 ) { return; } 
+
+/* 
+          Eigen::Vector3d qhat;
+           double qq= q.norm();
+           if(abs(qq) < 1e-8) qq=1.0;
+           qhat(0)=q(0)/qq;
+           qhat(1)=q(1)/qq;
+           qhat(2)=q(2)/qq;
+           //q = qhat; 
+ */
+  //std::cout << "q crys " << crystal.cartesianToCrystal(q).transpose() << std::endl;
+
+  double qeq = (qhat.transpose() * dielectricMatrix * qhat).value();
+  // TODO maybe a factor of 4 here? 
+  double norm = fourPi / (qeq) / volumeUnitCell;
+
+  Eigen::MatrixXd qZ(3, numAtoms); // in QE rgd_blk, this is called zag and zbg
+  for (int na = 0; na < numAtoms; na++) {
+    for (int i : {0, 1, 2}) {
+      qZ(i, na) = qhat(0) * bornCharges(na, 0, i) + qhat(1) * bornCharges(na, 1, i) + qhat(2) * bornCharges(na, 2, i);
+    }
+  }
+  //std::cout << "qZ " << qZ  << " norm " << norm << " qeq " << qeq << std::endl;
+
+  // TODO can we OMP this? is it worth it? 
+  for (int na = 0; na < numAtoms; ++na) {
+    for (int nb = 0; nb < numAtoms; ++nb) {
+      for (auto i : {0,1,2}) {
+        for (auto j : {0,1,2}) {
+          dyn(i, j, na, nb) += qZ(i,na) * qZ(j,nb) * norm;
+        }
+      }
+    } 
+  }
 }
