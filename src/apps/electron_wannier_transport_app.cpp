@@ -71,9 +71,13 @@ void ElectronWannierTransportApp::run(Context &context) {
     Eigen::Vector3i qMesh = context.getQMesh();
     Eigen::Vector3i kMesh = context.getKMesh();
 
-    if(qMesh.prod() == 0) {
+    if(qMesh.prod() == 0 || qMesh == kMesh ) {
       Warning("When running RTA, if qMesh is not set, we default to using the kMesh,\n"
               "This may be more expensive than needed.");
+
+      // use the same bandstructure
+      innerBandStructure = std::make_shared<ActiveBandStructure>(bandStructure);
+    
     } else { // check that the k and q meshes are commensurate 
 
       if( kMesh(0)%qMesh(0) != 0 || kMesh(1)%qMesh(1) != 0 || kMesh(2)%qMesh(2) != 0 ) {
