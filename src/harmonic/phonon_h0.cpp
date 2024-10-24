@@ -779,28 +779,35 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
   Kokkos::Profiling::pushRegion("phononH0.shortRangeTerm");
 
   std::vector<std::complex<double>> phases(numBravaisVectors);
-#pragma omp parallel for default(none) shared(numBravaisVectors, bravaisVectors, q, complexI, phases)
+#pragma omp parallel for default(none) shared(numBravaisVectors, bravaisVectors, q, complexI, phases, weights)
   for (int iR = 0; iR < numBravaisVectors; iR++) {
     Eigen::Vector3d r = bravaisVectors.col(iR);
     double arg = q.dot(r);
     phases[iR] = exp(-complexI * arg); // {cos(arg), -sin(arg)};
   }
 
-#pragma omp declare reduction (+: Eigen::Tensor<std::complex<double>, 4>: omp_out=omp_out+omp_in)\
-     initializer(omp_priv=Eigen::Tensor<std::complex<double>, 4>(omp_orig.dimension(0),omp_orig.dimension(1),omp_orig.dimension(2),omp_orig.dimension(3)).setZero())
+//#pragma omp declare reduction (+: Eigen::Tensor<std::complex<double>, 4>: omp_out+=omp_in)\
+//     initializer(omp_priv=Eigen::Tensor<std::complex<double>, 4>(omp_orig.dimension(0),omp_orig.dimension(1),omp_orig.dimension(2),omp_orig.dimension(3)).setZero())
 
-#pragma omp parallel for collapse(5) default(none) reduction (+:dyn) shared(mat2R, phases, weights,numAtoms,numBravaisVectors)
+//#pragma omp parallel for collapse(5) default(none) reduction (+:dyn) shared(mat2R, phases, weights, numAtoms, numBravaisVectors) 
+#pragma omp 
+{
+  Eigen::Tensor<std::complex<double>, 4> tmpDyn(3,3,numAtoms,numAtoms);
+  tmpDyn.setZero();
   for (int iR = 0; iR < numBravaisVectors; iR++) {
     for (int nb = 0; nb < numAtoms; nb++) {
       for (int na = 0; na < numAtoms; na++) {
         for (int j : {0, 1, 2}) {
           for (int i : {0, 1, 2}) {
-            dyn(i, j, na, nb) +=  mat2R(i, j, na, nb, iR) * phases[iR] * weights(iR);
+            tmpDyn(i, j, na, nb) +=  mat2R(i, j, na, nb, iR) * phases[iR] * weights(iR);
           }
         }
       }
     }
-  }
+  } 
+  #pragma omp critical 
+  dyn += tmpDyn; 
+}
   Kokkos::Profiling::popRegion();
 }
 
