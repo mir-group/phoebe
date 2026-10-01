@@ -322,7 +322,7 @@ void outputRelaxonsToHDF5(ParallelMatrix<double>& eigenvectors,
     int numBands = bandStructure->getFullNumBands();
     Particle particle = bandStructure->getParticle();
     // convertion for time units
-    double energyToTime = particle.isPhonon() ? energyRyToFs * 1e-3 : energyRyToFs;
+    double energyToTime = particle.isPhonon() ? energyRyToFs * 1e-3 / twoPi : energyRyToFs;
 
     // oftset in n states for indexing if we hac the coupled calculation, phonon bands
     size_t stateOffset = 0;
@@ -548,7 +548,7 @@ void outputRelaxonVelocitiesToHDF5(const Eigen::VectorXd& eigenvalues,
                                       const Particle& particle,
                                       int numRelaxons) {
 
-  double energyToTime = particle.isPhonon() ? energyRyToFs * 1e-3 : energyRyToFs;
+  double energyToTime = particle.isPhonon() ? energyRyToFs * 1e-3 / twoPi : energyRyToFs;
 
   Eigen::VectorXd tau = energyToTime * eigenvalues.array().inverse();
   Eigen::MatrixXd Vphi_x = Eigen::MatrixXd::Zero(numRelaxons, 3);
